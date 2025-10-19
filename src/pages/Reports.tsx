@@ -9,7 +9,7 @@ import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useClockReport } from "@/hooks/use-clock-report";
-import { Loader2, Clock, History, MapPin, Camera, Users, User, Download } from "lucide-react"; // Adicionado Download
+import { Loader2, Clock, History, MapPin, Camera, Users, User, Download } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -24,8 +24,8 @@ import { useSession } from "@/integrations/supabase/auth";
 import { EmployeeProfile } from "@/types/employee";
 import { toast } from "sonner";
 import DailyHoursChart from "@/components/DailyHoursChart";
-import { Button } from "@/components/ui/button"; // Importar Button
-import { exportClockEventsToCsv } from "@/utils/csvExport"; // Importar a função de exportação
+import { Button } from "@/components/ui/button";
+import { exportClockEventsToCsv } from "@/utils/csvExport";
 
 const Reports = () => {
   const { session, isLoading: sessionLoading } = useSession();
@@ -183,7 +183,7 @@ const Reports = () => {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <DateRangePicker date={dateRange} setDate={setDateRange} />
-          <div className="flex items-center gap-4 w-full sm:w-auto"> {/* Adicionado um div para agrupar o Select e o Botão */}
+          <div className="flex items-center gap-4 w-full sm:w-auto">
             {isAdmin && (
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <Users className="h-4 w-4 text-muted-foreground" />
