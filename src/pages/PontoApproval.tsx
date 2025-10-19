@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Layout from "@/components/layout/Layout";
-import { Loader2, CheckCircle2 } from "lucide-react"; // Adicionado CheckCircle2
+import { Loader2, CheckCircle2 } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { createPontoApprovalColumns } from "./ponto-approval/columns";
 import { toast } from "sonner";
@@ -11,14 +11,15 @@ import { useSession } from "@/integrations/supabase/auth";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClockEvent } from "@/types/clock";
-import { EmployeeProfile } from "@/types/employee"; // Import EmployeeProfile
+import { EmployeeProfile } from "@/types/employee";
+import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 
 const PontoApproval = () => {
   const [pendingPontos, setPendingPontos] = useState<ClockEvent[]>([]);
   const [isLoadingPontos, setIsLoadingPontos] = useState(true);
   const [currentUserProfile, setCurrentUserProfile] = useState<EmployeeProfile | null>(null);
   const [isCurrentUserProfileLoading, setIsCurrentUserProfileLoading] = useState(true);
-  const [employeeNames, setEmployeeNames] = useState<Map<string, string>>(new Map()); // Map to store employee names
+  const [employeeNames, setEmployeeNames] = new Map<string, string>(); // Map to store employee names
 
   const { session, isLoading: sessionLoading } = useSession();
   const navigate = useNavigate();
@@ -204,7 +205,9 @@ const PontoApproval = () => {
               <p className="text-sm">Todos os registros estão em dia!</p>
             </div>
           ) : (
-            <DataTable columns={columns} data={pendingPontos} />
+            <ScrollArea className="w-full whitespace-nowrap rounded-md border"> {/* Adicionado ScrollArea */}
+              <DataTable columns={columns} data={pendingPontos} />
+            </ScrollArea>
           )}
         </CardContent>
       </Card>

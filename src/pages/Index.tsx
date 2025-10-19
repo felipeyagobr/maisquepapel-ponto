@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 const Index = () => {
   return (
     <Layout>
-      <div className="grid gap-8 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-8 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3"> {/* Adicionado grid-cols-1 para mobile */}
         {/* Main Clocking Area */}
         <Card className="lg:col-span-2 xl:col-span-2 flex flex-col items-center justify-center p-8 text-center shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20">
           <CardHeader className="pb-6">

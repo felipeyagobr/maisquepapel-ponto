@@ -15,6 +15,7 @@ import { EmployeeProfile } from "@/types/employee";
 import { useSession } from "@/integrations/supabase/auth";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 
 const Employees = () => {
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
@@ -189,7 +190,7 @@ const Employees = () => {
 
   return (
     <Layout>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4"> {/* Ajustado para flex-col em mobile */}
         <h1 className="text-2xl font-bold">Funcionários</h1>
         <Dialog open={isEmployeeFormOpen} onOpenChange={(open) => {
           setIsEmployeeFormOpen(open);
@@ -203,7 +204,7 @@ const Employees = () => {
           }
         }}>
           <DialogTrigger asChild>
-            <Button className="flex items-center gap-2" onClick={prepareForAddEmployee}>
+            <Button className="flex items-center gap-2 w-full sm:w-auto" onClick={prepareForAddEmployee}> {/* Ajustado para w-full em mobile */}
               <PlusCircle className="h-4 w-4" />
               Adicionar Funcionário
             </Button>
@@ -239,7 +240,9 @@ const Employees = () => {
       </div>
       <Card className="flex-1">
         <CardContent className="p-4">
-          <DataTable columns={columns} data={employees} />
+          <ScrollArea className="w-full whitespace-nowrap rounded-md border"> {/* Adicionado ScrollArea */}
+            <DataTable columns={columns} data={employees} />
+          </ScrollArea>
         </CardContent>
       </Card>
     </Layout>

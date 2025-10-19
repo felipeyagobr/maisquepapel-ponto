@@ -183,7 +183,7 @@ const Reports = () => {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <DateRangePicker date={dateRange} setDate={setDateRange} />
-          <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto"> {/* Ajustado para flex-col em mobile */}
             {isAdmin && (
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <Users className="h-4 w-4 text-muted-foreground" />
@@ -208,7 +208,7 @@ const Reports = () => {
                 </Select>
               </div>
             )}
-            <Button onClick={handleExportCsv} disabled={isLoading || clockEvents.length === 0} className="flex items-center gap-2">
+            <Button onClick={handleExportCsv} disabled={isLoading || clockEvents.length === 0} className="flex items-center gap-2 w-full sm:w-auto"> {/* Ajustado para w-full em mobile */}
               <Download className="h-4 w-4" /> Exportar CSV
             </Button>
           </div>
@@ -243,7 +243,7 @@ const Reports = () => {
           </Card>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3"> {/* Adicionado grid-cols-1 para mobile */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
