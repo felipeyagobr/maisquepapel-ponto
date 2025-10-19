@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Layout from "@/components/layout/Layout";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2 } from "lucide-react"; // Adicionado CheckCircle2
 import { DataTable } from "@/components/data-table/DataTable";
 import { createPontoApprovalColumns } from "./ponto-approval/columns";
 import { toast } from "sonner";
@@ -145,11 +145,12 @@ const PontoApproval = () => {
     const baseColumns = createPontoApprovalColumns({
       onApprove: (id) => handlePontoAction(id, 'aprovado'),
       onReject: (id) => handlePontoAction(id, 'rejeitado'),
+      employeeNames: employeeNames, // Passar employeeNames aqui
     });
 
     // Override the 'user_id' column to display employee name
     return baseColumns.map(col => {
-      if (col.accessorKey === 'user_id') {
+      if (col.id === 'user_id') { // Usar col.id em vez de col.accessorKey
         return {
           ...col,
           cell: ({ row }) => {
