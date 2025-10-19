@@ -9,7 +9,7 @@ import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useClockReport } from "@/hooks/use-clock-report";
-import { Loader2, Clock, History, MapPin, Camera, Users, User } from "lucide-react";
+import { Loader2, Clock, History, MapPin, Camera, Users, User, Download } from "lucide-react"; // Adicionado Download
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,7 +23,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
 import { EmployeeProfile } from "@/types/employee";
 import { toast } from "sonner";
-import DailyHoursChart from "@/components/DailyHoursChart"; // Import the new chart component
+import DailyHoursChart from "@/components/DailyHoursChart";
+import { Button } from "@/components/ui/button"; // Importar Button
+import { exportClockEventsToCsv } from "@/utils/csvExport"; // Importar a função de exportação
 
 const Reports = () => {
   const { session, isLoading: sessionLoading } = useSession();
@@ -31,7 +33,7 @@ const Reports = () => {
   const [isCurrentUserProfileLoading, setIsCurrentUserProfileLoading] = useState(true);
   const [allEmployees, setAllEmployees] = useState<EmployeeProfile[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>(undefined);
-  const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<EmployeeProfile | null>(null); // New state for selected employee details
+  const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<EmployeeProfile | null>(null);
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
@@ -127,6 +129,28 @@ const Reports = () => {
     }
   }, [selectedEmployeeId, allEmployees, currentUserProfile]);
 
+  const handleExportCsv = () => {
+    if (clockEvents.length === 0) {
+      toast.info("Nenhum dado para exportar.");
+      return;
+    }
+    let filename = "relatorio_ponto";
+    if (selectedEmployeeDetails) {
+      filename += `_${selectedEmployeeDetails.first_name}_${selectedEmployeeDetails.last_name}`;
+    } else if (isViewingAllEmployees) {
+      filename += "_todos_funcionarios";
+    }
+    if (dateRange?.from && dateRange?.to) {
+      filename += `_${format(dateRange.from, "yyyyMMdd")}_${format(dateRange.to, "yyyyMMdd")}`;
+    } else if (dateRange?.from) {
+      filename += `_${format(dateRange.from, "yyyyMMdd")}`;
+    }
+    filename += ".csv";
+
+    exportClockEventsToCsv(clockEvents, filename);
+    toast.success("Relatório exportado com sucesso!");
+  };
+
 
   if (sessionLoading || isCurrentUserProfileLoading) {
     return (
@@ -159,30 +183,35 @@ const Reports = () => {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <DateRangePicker date={dateRange} setDate={setDateRange} />
-          {isAdmin && (
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <Select
-                onValueChange={(value) => setSelectedEmployeeId(value === "all" ? undefined : value)}
-                value={selectedEmployeeId || (isAdmin && !selectedEmployeeId ? "all" : currentUserProfile?.id)}
-              >
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Selecionar Funcionário" />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* Option to view all employees' reports (if applicable, or just current user's) */}
-                  {isAdmin && (
-                    <SelectItem value="all">Todos os Funcionários</SelectItem>
-                  )}
-                  {allEmployees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {employee.first_name} {employee.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="flex items-center gap-4 w-full sm:w-auto"> {/* Adicionado um div para agrupar o Select e o Botão */}
+            {isAdmin && (
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <Select
+                  onValueChange={(value) => setSelectedEmployeeId(value === "all" ? undefined : value)}
+                  value={selectedEmployeeId || (isAdmin && !selectedEmployeeId ? "all" : currentUserProfile?.id)}
+                >
+                  <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="Selecionar Funcionário" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* Option to view all employees' reports (if applicable, or just current user's) */}
+                    {isAdmin && (
+                      <SelectItem value="all">Todos os Funcionários</SelectItem>
+                    )}
+                    {allEmployees.map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id}>
+                        {employee.first_name} {employee.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button onClick={handleExportCsv} disabled={isLoading || clockEvents.length === 0} className="flex items-center gap-2">
+              <Download className="h-4 w-4" /> Exportar CSV
+            </Button>
+          </div>
         </div>
 
         {isViewingAllEmployees ? (
