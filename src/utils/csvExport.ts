@@ -42,7 +42,7 @@ export const exportClockEventsToCsv = (events: ClockEvent[], filename: string = 
       `"${event.tipo_batida}"`,
       `"${event.status}"`,
       event.latitude !== null ? event.latitude.toString() : "",
-      event.longitude !== null ? event.longitude.longitude.toString() : "",
+      event.longitude !== null ? event.longitude.toString() : "", // CORRIGIDO AQUI
       `"${event.foto_url || ""}"`,
       `"${event.admin_id || ""}"`,
       `"${formattedApprovedTimestamp}"`,
