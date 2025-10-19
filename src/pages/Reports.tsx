@@ -4,7 +4,7 @@ import { useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { DateRange } from "react-day-picker";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns"; // Adicionado parseISO
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
