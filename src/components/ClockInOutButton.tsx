@@ -2,10 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Clock, LogIn, LogOut } from "lucide-react";
+import { LogIn, LogOut } from "lucide-react";
 import CurrentDateTime from "./CurrentDateTime";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+interface ClockEvent {
+  id: string;
+  type: 'entrada' | 'saída';
+  timestamp: string; // ISO string for easy sorting and display
+  displayTime: string; // Formatted time for display
+}
 
 const ClockInOutButton = () => {
   const [isClockedIn, setIsClockedIn] = useState<boolean>(() => {
@@ -16,23 +23,24 @@ const ClockInOutButton = () => {
     }
     return false;
   });
-  const [lastActionTime, setLastActionTime] = useState<string | null>(() => {
-    // Initialize from localStorage
+
+  const [clockHistory, setClockHistory] = useState<ClockEvent[]>(() => {
+    // Initialize history from localStorage
     if (typeof window !== 'undefined') {
-      return localStorage.getItem("lastActionTime");
+      const storedHistory = localStorage.getItem("clockHistory");
+      return storedHistory ? JSON.parse(storedHistory) : [];
     }
-    return null;
+    return [];
   });
+
+  // Derive lastActionTime from clockHistory for consistency
+  const lastActionTime = clockHistory.length > 0 ? clockHistory[0].displayTime : null;
 
   useEffect(() => {
     // Persist state to localStorage
     localStorage.setItem("isClockedIn", String(isClockedIn));
-    if (lastActionTime) {
-      localStorage.setItem("lastActionTime", lastActionTime);
-    } else {
-      localStorage.removeItem("lastActionTime");
-    }
-  }, [isClockedIn, lastActionTime]);
+    localStorage.setItem("clockHistory", JSON.stringify(clockHistory));
+  }, [isClockedIn, clockHistory]);
 
   const handleClockInOut = () => {
     const now = new Date();
@@ -41,16 +49,19 @@ const ClockInOutButton = () => {
       minute: "2-digit",
       second: "2-digit",
     });
+    const newEvent: ClockEvent = {
+      id: Date.now().toString(), // Unique ID for each event
+      type: isClockedIn ? 'saída' : 'entrada',
+      timestamp: now.toISOString(),
+      displayTime: formattedTime,
+    };
 
-    if (isClockedIn) {
-      // Clocking out
-      setIsClockedIn(false);
-      setLastActionTime(formattedTime);
+    setClockHistory(prevHistory => [newEvent, ...prevHistory]); // Add new event to the beginning
+    setIsClockedIn(prev => !prev); // Toggle clock-in status
+
+    if (newEvent.type === 'saída') {
       toast.success(`Ponto registrado: Saída às ${formattedTime}`);
     } else {
-      // Clocking in
-      setIsClockedIn(true);
-      setLastActionTime(formattedTime);
       toast.info(`Ponto registrado: Entrada às ${formattedTime}`);
     }
   };
