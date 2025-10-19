@@ -1,18 +1,22 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+"use client";
 
-import { MadeWithDyad } from "@/components/made-with-dyad";
+import Layout from "@/components/layout/Layout";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">
-          Start building your amazing project here!
-        </p>
+    <Layout>
+      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm p-8">
+        <div className="flex flex-col items-center gap-1 text-center">
+          <h3 className="text-2xl font-bold tracking-tight">
+            Bem-vindo ao Mais Que Papel!
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Este é o seu painel de controle. Vamos começar a gerenciar o ponto.
+          </p>
+          {/* Aqui adicionaremos o botão de bater ponto e outras informações */}
+        </div>
       </div>
-      <MadeWithDyad />
-    </div>
+    </Layout>
   );
 };
 
