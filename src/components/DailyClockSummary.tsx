@@ -1,69 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Loader2, MapPin, Camera, UtensilsCrossed } from "lucide-react"; // Adicionado UtensilsCrossed
+import { Clock, Loader2, MapPin, Camera, UtensilsCrossed } from "lucide-react";
 import { useClockReport } from "@/hooks/use-clock-report";
 import { DateRange } from "react-day-picker";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ClockEvent } from "@/types/clock";
-import { useSession } from "@/integrations/supabase/auth";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 const DailyClockSummary = () => {
-  const { session } = useSession();
   const today: DateRange = {
     from: new Date(),
     to: new Date(),
   };
-  const { totalHoursWorked, dailySummaries, isLoading } = useClockReport(today);
-  const [currentDayEvents, setCurrentDayEvents] = useState<ClockEvent[]>([]);
-
-  const fetchCurrentDayEvents = async () => {
-    if (!session?.user?.id) {
-      setCurrentDayEvents([]);
-      return;
-    }
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    try {
-      const { data, error } = await supabase
-        .from('pontos')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .gte('timestamp_solicitado', todayStart.toISOString())
-        .lte('timestamp_solicitado', todayEnd.toISOString())
-        .order('timestamp_solicitado', { ascending: true });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      const formattedEvents: ClockEvent[] = data.map(event => ({
-        ...event,
-        displayTime: format(parseISO(event.timestamp_solicitado), "HH:mm:ss", { locale: ptBR }),
-      }));
-      setCurrentDayEvents(formattedEvents);
-    } catch (error: any) {
-      console.error("Erro ao buscar eventos do dia:", error.message);
-      toast.error("Erro ao carregar registros do dia: " + error.message);
-      setCurrentDayEvents([]);
-    }
-  };
-
-  useEffect(() => {
-    fetchCurrentDayEvents();
-    window.addEventListener('supabaseDataChange', fetchCurrentDayEvents);
-    return () => window.removeEventListener('supabaseDataChange', fetchCurrentDayEvents);
-  }, [session]);
+  // Agora, useClockReport é a única fonte de verdade para os eventos do dia e o estado de carregamento.
+  const { totalHoursWorked, dailySummaries, clockEvents, isLoading } = useClockReport(today);
 
   const todaySummary = dailySummaries.find(
     (summary) => summary.date === format(new Date(), "yyyy-MM-dd")
@@ -100,7 +53,7 @@ const DailyClockSummary = () => {
             </div>
           ) : (
             <p className="text-2xl font-bold text-primary">
-              {todaySummary ? todaySummary.totalHours : "0h 0m"}
+              {totalHoursWorked}
             </p>
           )}
         </div>
@@ -110,20 +63,23 @@ const DailyClockSummary = () => {
           <div className="flex items-center justify-center h-40">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
-        ) : currentDayEvents.length === 0 ? (
+        ) : clockEvents.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
             Nenhum registro de ponto para hoje.
           </p>
         ) : (
           <ScrollArea className="h-40 w-full rounded-md border p-4">
             <ul className="space-y-3">
-              {currentDayEvents.map((event) => {
+              {clockEvents.map((event) => {
                 const badgeProps = getBadgeProps(event.tipo_batida);
                 return (
                   <li key={event.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm border-b pb-2 last:border-b-0 last:pb-0">
-                    <span className="font-medium">
-                      {event.displayTime}
-                    </span>
+                    <div className="flex items-center gap-2 mb-1 sm:mb-0">
+                      <span className="font-medium">
+                        {format(parseISO(event.timestamp_solicitado), "dd/MM/yyyy", { locale: ptBR })}
+                      </span>
+                      <span className="text-muted-foreground">{event.displayTime}</span>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Badge
                         variant="default"
