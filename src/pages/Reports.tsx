@@ -210,7 +210,18 @@ const Reports = () => {
         </div>
 
         {/* Daily Hours Chart */}
-        <DailyHoursChart dailySummaries={dailySummaries} />
+        {isLoading ? (
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Horas Trabalhadas por Dia</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-center h-60">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </CardContent>
+          </Card>
+        ) : (
+          <DailyHoursChart dailySummaries={dailySummaries} />
+        )}
 
         <Card className="flex-1">
           <CardHeader>
