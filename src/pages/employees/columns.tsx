@@ -17,9 +17,10 @@ import { EmployeeProfile } from "@/types/employee"; // Import the new EmployeePr
 interface ColumnsProps {
   onEdit: (employee: EmployeeProfile) => void;
   onDelete: (id: string) => void;
+  onManageSchedule: (employee: EmployeeProfile) => void; // Nova prop para gerenciar expediente
 }
 
-export const createColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<EmployeeProfile>[] => [
+export const createColumns = ({ onEdit, onDelete, onManageSchedule }: ColumnsProps): ColumnDef<EmployeeProfile>[] => [
   {
     accessorKey: "name", // This will be a virtual column for display
     header: "Nome",
@@ -63,7 +64,10 @@ export const createColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Emp
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Ações</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => onEdit(employee)}>
-              Editar
+              Editar Perfil
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onManageSchedule(employee)}> {/* Nova opção */}
+              Gerenciar Expediente
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onDelete(employee.id)} className="text-destructive">

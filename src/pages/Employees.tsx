@@ -6,19 +6,22 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, Loader2 } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { createColumns } from "./employees/columns";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"; // Import Dialog components
 import EmployeeForm from "@/components/EmployeeForm";
+import EmployeeScheduleForm from "@/components/EmployeeScheduleForm"; // Import the new schedule form
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { EmployeeProfile } from "@/types/employee";
 import { useSession } from "@/integrations/supabase/auth";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card"; // Import Card components
+import { Card, CardContent } from "@/components/ui/card";
 
 const Employees = () => {
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false);
+  const [isScheduleFormOpen, setIsScheduleFormOpen] = useState(false); // New state for schedule form
   const [editingEmployee, setEditingEmployee] = useState<EmployeeProfile | undefined>(undefined);
+  const [managingScheduleEmployee, setManagingScheduleEmployee] = useState<EmployeeProfile | undefined>(undefined); // New state for schedule management
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
   const [currentUserProfile, setCurrentUserProfile] = useState<EmployeeProfile | null>(null);
   const [isCurrentUserProfileLoading, setIsCurrentUserProfileLoading] = useState(true);
@@ -99,15 +102,27 @@ const Employees = () => {
     }
   }, [isCurrentUserProfileLoading, currentUserProfile, navigate, session?.access_token]);
 
-  const handleSaveSuccess = () => {
+  const handleEmployeeSaveSuccess = () => {
     fetchEmployees();
-    setIsFormOpen(false);
+    setIsEmployeeFormOpen(false);
     setEditingEmployee(undefined);
+  };
+
+  const handleScheduleSaveSuccess = () => {
+    // No need to refetch employees, just close the dialog
+    setIsScheduleFormOpen(false);
+    setManagingScheduleEmployee(undefined);
+    toast.success("Expediente salvo com sucesso!");
   };
 
   const handleEditClick = (employee: EmployeeProfile) => {
     setEditingEmployee(employee);
-    setIsFormOpen(true);
+    setIsEmployeeFormOpen(true);
+  };
+
+  const handleManageScheduleClick = (employee: EmployeeProfile) => {
+    setManagingScheduleEmployee(employee);
+    setIsScheduleFormOpen(true);
   };
 
   const handleDeleteEmployee = async (id: string) => {
@@ -141,6 +156,7 @@ const Employees = () => {
   const columns = useMemo(() => createColumns({
     onEdit: handleEditClick,
     onDelete: handleDeleteEmployee,
+    onManageSchedule: handleManageScheduleClick, // Pass the new handler
   }), [employees, session?.access_token]);
 
   if (sessionLoading || isCurrentUserProfileLoading || isLoadingEmployees) {
@@ -175,8 +191,8 @@ const Employees = () => {
     <Layout>
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Funcionários</h1>
-        <Dialog open={isFormOpen} onOpenChange={(open) => {
-          setIsFormOpen(open);
+        <Dialog open={isEmployeeFormOpen} onOpenChange={(open) => {
+          setIsEmployeeFormOpen(open);
           if (!open) {
             setEditingEmployee(undefined);
           }
@@ -188,14 +204,37 @@ const Employees = () => {
             </Button>
           </DialogTrigger>
           <EmployeeForm
-            onSaveSuccess={handleSaveSuccess}
-            onClose={() => setIsFormOpen(false)}
+            onSaveSuccess={handleEmployeeSaveSuccess}
+            onClose={() => setIsEmployeeFormOpen(false)}
             initialData={editingEmployee}
           />
         </Dialog>
+
+        {/* Dialog for Employee Schedule Form */}
+        <Dialog open={isScheduleFormOpen} onOpenChange={(open) => {
+          setIsScheduleFormOpen(open);
+          if (!open) {
+            setManagingScheduleEmployee(undefined);
+          }
+        }}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Gerenciar Expediente</DialogTitle>
+              <DialogDescription>
+                Defina os horários de trabalho para {managingScheduleEmployee?.first_name} {managingScheduleEmployee?.last_name}.
+              </DialogDescription>
+            </DialogHeader>
+            {managingScheduleEmployee && (
+              <EmployeeScheduleForm
+                employee={managingScheduleEmployee}
+                onSaveSuccess={handleScheduleSaveSuccess}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
-      <Card className="flex-1"> {/* Use Card here */}
-        <CardContent className="p-4"> {/* Add padding to CardContent */}
+      <Card className="flex-1">
+        <CardContent className="p-4">
           <DataTable columns={columns} data={employees} />
         </CardContent>
       </Card>
