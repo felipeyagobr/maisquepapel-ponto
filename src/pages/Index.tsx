@@ -4,6 +4,7 @@ import Layout from "@/components/layout/Layout";
 import ClockInOutButton from "@/components/ClockInOutButton";
 import ClockHistory from "@/components/ClockHistory";
 import DailyClockSummary from "@/components/DailyClockSummary"; // Import the new component
+import EmployeeScheduleDisplay from "@/components/EmployeeScheduleDisplay"; // Import the new schedule display component
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Import Card components
 
 const Index = () => {
@@ -25,9 +26,10 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        {/* Daily Summary and History */}
+        {/* Daily Summary, Schedule, and History */}
         <div className="flex flex-col gap-6">
           <DailyClockSummary />
+          <EmployeeScheduleDisplay /> {/* Add the new component here */}
           <ClockHistory />
         </div>
       </div>
