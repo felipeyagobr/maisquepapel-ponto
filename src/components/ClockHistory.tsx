@@ -1,25 +1,55 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { History, Trash2, MapPin, Camera, Loader2, UtensilsCrossed } from "lucide-react"; // Adicionado UtensilsCrossed
+import { History, Trash2, MapPin, Camera, Loader2, UtensilsCrossed } from "lucide-react";
 import { toast } from "sonner";
 import { useClockReport } from "@/hooks/use-clock-report";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
+import { EmployeeProfile } from "@/types/employee"; // Import EmployeeProfile
 
 const ClockHistory = () => {
-  const { session } = useSession();
-  const { clockEvents: history, isLoading, fetchClockEvents } = useClockReport(undefined); // Busca todo o histórico
+  const { session, isLoading: sessionLoading } = useSession();
+  const { clockEvents: history, isLoading, fetchClockEvents } = useClockReport(undefined);
+  const [currentUserProfile, setCurrentUserProfile] = useState<EmployeeProfile | null>(null);
+  const [isCurrentUserProfileLoading, setIsCurrentUserProfileLoading] = useState(true);
+
+  // Effect to fetch current user's profile
+  useEffect(() => {
+    const fetchCurrentUserProfile = async () => {
+      if (session?.user) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, role, avatar_url, updated_at')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Erro ao carregar perfil do usuário atual:", error.message);
+          setCurrentUserProfile(null);
+        } else if (data) {
+          setCurrentUserProfile({ ...data, email: session.user.email || 'N/A' });
+        } else {
+          setCurrentUserProfile(null);
+        }
+      }
+      setIsCurrentUserProfileLoading(false);
+    };
+
+    if (!sessionLoading) {
+      fetchCurrentUserProfile();
+    }
+  }, [session, sessionLoading]);
 
   const clearHistory = async () => {
-    if (!session?.user?.id) {
-      toast.error("Você precisa estar logado para limpar o histórico.");
+    if (!session?.user?.id || currentUserProfile?.role !== 'admin') {
+      toast.error("Acesso negado. Apenas administradores podem limpar o histórico.");
       return;
     }
 
@@ -36,7 +66,7 @@ const ClockHistory = () => {
 
       toast.dismiss(loadingToastId);
       toast.info("Histórico de ponto limpo.");
-      window.dispatchEvent(new Event('supabaseDataChange')); // Notifica outros componentes
+      window.dispatchEvent(new Event('supabaseDataChange'));
     } catch (error: any) {
       console.error("Erro ao limpar histórico:", error.message);
       toast.dismiss(loadingToastId);
@@ -44,7 +74,7 @@ const ClockHistory = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isCurrentUserProfileLoading) {
     return (
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
@@ -80,7 +110,7 @@ const ClockHistory = () => {
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <History className="h-5 w-5" /> Histórico de Ponto
         </CardTitle>
-        {history.length > 0 && (
+        {history.length > 0 && currentUserProfile?.role === 'admin' && ( // Renderiza o botão apenas para admins
           <Button variant="ghost" size="sm" onClick={clearHistory} className="text-muted-foreground hover:text-destructive">
             <Trash2 className="h-4 w-4 mr-1" /> Limpar
           </Button>
