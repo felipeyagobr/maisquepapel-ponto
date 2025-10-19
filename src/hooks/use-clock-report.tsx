@@ -30,13 +30,12 @@ const formatMinutesToHours = (totalMinutes: number): string => {
   return `${hours}h ${minutes}m`;
 };
 
-export function useClockReport(dateRange: DateRange | undefined, employeeId?: string): ClockReport {
-  const { session, isLoading: sessionLoading } = useSession(); // Obter o estado de carregamento da sessão
+export function useClockReport(dateRange: DateRange | undefined, employeeId?: string, isAdminViewingAll?: boolean): ClockReport {
+  const { session, isLoading: sessionLoading } = useSession();
   const [clockEvents, setClockEvents] = useState<ClockEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(true); // Estado de carregamento para os eventos de ponto
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchClockEvents = async () => {
-    // Se a sessão ainda estiver carregando, mantenha o estado de carregamento e retorne.
     if (sessionLoading) {
       setIsLoading(true);
       return;
@@ -44,21 +43,26 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
 
     const targetUserId = employeeId || session?.user?.id;
 
-    // Se não houver um ID de usuário alvo (nem employeeId nem session.user.id),
-    // significa que não há dados para buscar.
-    if (!targetUserId) {
+    // Se o admin está visualizando todos os funcionários e nenhum funcionário específico foi selecionado,
+    // não aplicamos o filtro de user_id. Caso contrário, se não houver targetUserId e não for admin visualizando todos,
+    // não há dados para buscar.
+    if (!targetUserId && !isAdminViewingAll) {
       setClockEvents([]);
-      setIsLoading(false); // Pare de carregar e mostre que não há dados
+      setIsLoading(false);
       return;
     }
 
-    setIsLoading(true); // Inicia o carregamento dos eventos de ponto
+    setIsLoading(true);
     try {
       let query = supabase
         .from('pontos')
         .select('*')
-        .eq('user_id', targetUserId)
         .order('timestamp_solicitado', { ascending: false });
+
+      // Aplica o filtro de user_id apenas se um funcionário específico for selecionado
+      if (targetUserId) {
+        query = query.eq('user_id', targetUserId);
+      }
 
       if (dateRange?.from && dateRange?.to) {
         const start = startOfDay(dateRange.from).toISOString();
@@ -90,21 +94,19 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
       toast.error("Erro ao carregar histórico de ponto: " + error.message);
       setClockEvents([]);
     } finally {
-      setIsLoading(false); // Finaliza o carregamento, independentemente do resultado
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    // Só executa a busca de eventos de ponto se o carregamento da sessão estiver completo
     if (!sessionLoading) {
       fetchClockEvents();
     }
     window.addEventListener('supabaseDataChange', fetchClockEvents);
     return () => window.removeEventListener('supabaseDataChange', fetchClockEvents);
-  }, [session, dateRange, employeeId, sessionLoading]); // Adicionar sessionLoading às dependências
+  }, [session, dateRange, employeeId, sessionLoading, isAdminViewingAll]); // Adicionar isAdminViewingAll às dependências
 
   const { totalMinutesWorked, dailySummaries } = useMemo(() => {
-    // Se ainda estiver carregando ou não houver eventos, retorne valores padrão
     if (isLoading || !clockEvents.length) {
       return { totalMinutesWorked: 0, dailySummaries: [] };
     }
@@ -179,7 +181,7 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
       totalMinutesWorked: totalWorkMinutes,
       dailySummaries: aggregatedDailySummaries,
     };
-  }, [clockEvents, dateRange]); // Removido 'isLoading' das dependências para evitar loop
+  }, [clockEvents, dateRange]);
 
   const totalHoursWorked = formatMinutesToHours(totalMinutesWorked);
 

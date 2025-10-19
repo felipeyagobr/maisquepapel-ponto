@@ -34,7 +34,11 @@ const Reports = () => {
   const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<EmployeeProfile | null>(null); // New state for selected employee details
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const { totalHoursWorked, dailySummaries, clockEvents, isLoading } = useClockReport(dateRange, selectedEmployeeId);
+
+  const isAdmin = currentUserProfile?.role === 'admin';
+  const isViewingAllEmployees = isAdmin && selectedEmployeeId === undefined;
+
+  const { totalHoursWorked, dailySummaries, clockEvents, isLoading } = useClockReport(dateRange, selectedEmployeeId, isViewingAllEmployees);
 
   // Effect to fetch current user's profile
   useEffect(() => {
@@ -140,19 +144,19 @@ const Reports = () => {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <DateRangePicker date={dateRange} setDate={setDateRange} />
-          {currentUserProfile?.role === 'admin' && (
+          {isAdmin && (
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Users className="h-4 w-4 text-muted-foreground" />
               <Select
                 onValueChange={(value) => setSelectedEmployeeId(value === "all" ? undefined : value)}
-                value={selectedEmployeeId || (currentUserProfile?.role === 'admin' && !selectedEmployeeId ? "all" : currentUserProfile?.id)}
+                value={selectedEmployeeId || (isAdmin && !selectedEmployeeId ? "all" : currentUserProfile?.id)}
               >
                 <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Selecionar Funcionário" />
                 </SelectTrigger>
                 <SelectContent>
                   {/* Option to view all employees' reports (if applicable, or just current user's) */}
-                  {currentUserProfile?.role === 'admin' && (
+                  {isAdmin && (
                     <SelectItem value="all">Todos os Funcionários</SelectItem>
                   )}
                   {allEmployees.map((employee) => (
