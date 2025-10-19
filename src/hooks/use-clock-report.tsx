@@ -30,6 +30,10 @@ const formatMinutesToHours = (totalMinutes: number): string => {
   return `${hours}h ${minutes}m`;
 };
 
+// Constantes para a lógica do almoço
+const LUNCH_THRESHOLD_MINUTES = 360; // 6 horas
+const LUNCH_DEDUCTION_MINUTES = 60; // 1 hora
+
 export function useClockReport(dateRange: DateRange | undefined, employeeId?: string): ClockReport {
   const { session } = useSession();
   const [clockEvents, setClockEvents] = useState<ClockEvent[]>([]);
@@ -129,14 +133,20 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
 
           const duration = differenceInMinutes(saidaTime, entradaTime);
           if (duration > 0) {
-            totalWorkMinutes += duration;
-
             const dateKey = entradaTime.toISOString().split('T')[0]; // YYYY-MM-DD
             dailyWorkMinutes[dateKey] = (dailyWorkMinutes[dateKey] || 0) + duration;
           }
           i = nextSaidaIndex; // Pula para o evento de 'saída'
         }
       }
+    }
+
+    // Aplicar a lógica de dedução do almoço
+    for (const dateKey in dailyWorkMinutes) {
+      if (dailyWorkMinutes[dateKey] >= LUNCH_THRESHOLD_MINUTES) {
+        dailyWorkMinutes[dateKey] = Math.max(0, dailyWorkMinutes[dateKey] - LUNCH_DEDUCTION_MINUTES);
+      }
+      totalWorkMinutes += dailyWorkMinutes[dateKey];
     }
 
     const aggregatedDailySummaries: DailySummary[] = Object.keys(dailyWorkMinutes)
