@@ -27,9 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { EmployeeProfile, EmployeeFormValues as FormValues } from "@/types/employee"; // Importando os novos tipos
+import { EmployeeProfile, EmployeeFormValues as FormValues } from "@/types/employee";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSession } from "@/integrations/supabase/auth"; // Import useSession
 
 const employeeFormSchema = z.object({
   name: z.string().min(2, {
@@ -50,6 +51,8 @@ interface EmployeeFormProps {
 }
 
 const EmployeeForm = ({ onSaveSuccess, onClose, initialData }: EmployeeFormProps) => {
+  const { session } = useSession(); // Get session from context
+
   const form = useForm<FormValues>({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: initialData ? {
@@ -66,6 +69,14 @@ const EmployeeForm = ({ onSaveSuccess, onClose, initialData }: EmployeeFormProps
   const onSubmit = async (values: FormValues) => {
     const [firstName, ...lastNameParts] = values.name.split(' ');
     const lastName = lastNameParts.join(' ');
+
+    if (!session?.access_token) {
+      toast.error("Sessão não encontrada. Por favor, faça login novamente.");
+      return;
+    }
+
+    // URL da Edge Function (substitua 'dpmlhdbqzejijhnabges' pelo seu Project ID do Supabase)
+    const MANAGE_USERS_EDGE_FUNCTION_URL = `https://dpmlhdbqzejijhnabges.supabase.co/functions/v1/manage-users`;
 
     if (initialData) {
       // Update existing employee profile
@@ -87,22 +98,32 @@ const EmployeeForm = ({ onSaveSuccess, onClose, initialData }: EmployeeFormProps
         onClose();
       }
     } else {
-      // Invite new user
-      const { data, error } = await supabase.auth.admin.inviteUserByEmail(values.email, {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          role: values.role,
-        },
-        redirectTo: `${window.location.origin}/login`, // Redirect to login to set password
-      });
+      // Invite new user via Edge Function
+      try {
+        const response = await fetch(MANAGE_USERS_EDGE_FUNCTION_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: values.email,
+            first_name: firstName,
+            last_name: lastName,
+            role: values.role,
+          }),
+        });
 
-      if (error) {
-        toast.error("Erro ao convidar funcionário: " + error.message);
-      } else {
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Erro ao convidar funcionário.');
+        }
+
         toast.success(`Convite enviado para ${values.email}. O funcionário pode definir a senha no primeiro login.`);
         onSaveSuccess();
         onClose();
+      } catch (error: any) {
+        toast.error("Erro ao convidar funcionário: " + error.message);
       }
     }
   };

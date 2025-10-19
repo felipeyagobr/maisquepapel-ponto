@@ -92,6 +92,39 @@ serve(async (req) => {
         status: 200,
       });
 
+    } else if (req.method === 'POST') {
+      // Invite a new user
+      const { email, first_name, last_name, role } = await req.json();
+
+      if (!email || !first_name || !role) {
+        return new Response(JSON.stringify({ error: 'Bad Request: email, first_name, and role are required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data, error: inviteError } = await supabaseServiceRole.auth.admin.inviteUserByEmail(email, {
+        data: {
+          first_name: first_name,
+          last_name: last_name,
+          role: role,
+        },
+        redirectTo: `${req.headers.get('Origin')}/login`, // Use Origin from request for redirect
+      });
+
+      if (inviteError) {
+        console.error('Error inviting user:', inviteError.message);
+        return new Response(JSON.stringify({ error: inviteError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ message: `Convite enviado para ${email}.`, user: data.user }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+
     } else if (req.method === 'DELETE') {
       // Delete a user
       const { userId } = await req.json();
