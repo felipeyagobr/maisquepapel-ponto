@@ -1,7 +1,7 @@
 "use client";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Clock, Users, BarChart, Settings, LogOut } from "lucide-react";
+import { Clock, Users, BarChart, Settings, LogOut, CheckSquare } from "lucide-react"; // Adicionado CheckSquare
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/integrations/supabase/auth";
@@ -19,6 +19,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/", label: "Ponto", icon: Clock, roles: ['employee', 'admin'] },
+  { href: "/ponto-approval", label: "Aprovação de Ponto", icon: CheckSquare, roles: ['admin'] }, // Novo item para admins
   { href: "/employees", label: "Funcionários", icon: Users, roles: ['admin'] }, // Only for admins
   { href: "/reports", label: "Relatórios", icon: BarChart, roles: ['employee', 'admin'] },
   { href: "/settings", label: "Configurações", icon: Settings, roles: ['employee', 'admin'] },
