@@ -107,22 +107,28 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
     } finally {
       setIsLoading(false);
     }
-  }, [session, dateRange, employeeId, isAdminViewingAll]); // Removido sessionLoading daqui, pois o useEffect já o monitora
+  }, [session, dateRange, employeeId, isAdminViewingAll]);
 
   useEffect(() => {
-    // Só busca dados se a sessão não estiver carregando E (o usuário estiver logado OU for um admin visualizando todos).
-    if (!sessionLoading && (session?.user?.id || isAdminViewingAll)) {
+    if (sessionLoading) {
+      setIsLoading(true); // Mantém o loading se a sessão ainda está carregando
+      return;
+    }
+
+    const targetUserId = employeeId || session?.user?.id;
+    const shouldFetch = targetUserId || isAdminViewingAll;
+
+    if (shouldFetch) {
       fetchClockEvents();
-    } else if (!sessionLoading && !session?.user?.id && !isAdminViewingAll) {
-      // Se a sessão carregou, mas não há usuário logado e não é um admin visualizando todos,
-      // então não há dados para buscar, e o estado de carregamento deve ser false.
+    } else {
+      // Nenhum usuário logado e não está visualizando todos como admin, então não há dados para buscar.
       setClockEvents([]);
       setIsLoading(false);
     }
 
     window.addEventListener('supabaseDataChange', fetchClockEvents);
     return () => window.removeEventListener('supabaseDataChange', fetchClockEvents);
-  }, [session, sessionLoading, employeeId, isAdminViewingAll, fetchClockEvents]); // Adicionado session, employeeId, isAdminViewingAll
+  }, [session, sessionLoading, employeeId, isAdminViewingAll, fetchClockEvents]);
 
   const { totalMinutesWorked, dailySummaries } = useMemo(() => {
     if (isLoading || !clockEvents.length) {
