@@ -7,38 +7,29 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { History, Trash2 } from "lucide-react";
 import { toast } from "sonner"; // Import toast for notifications
-
-interface ClockEvent {
-  id: string;
-  type: 'entrada' | 'saída';
-  timestamp: string; // ISO string
-  displayTime: string; // Formatted time for display
-}
+import { ClockEvent } from "@/types/clock"; // Import ClockEvent
 
 const ClockHistory = () => {
   const [history, setHistory] = useState<ClockEvent[]>([]);
 
-  // Effect to load history from localStorage when component mounts
-  useEffect(() => {
+  // Function to load history from localStorage
+  const loadHistory = () => {
     if (typeof window !== 'undefined') {
       const storedHistory = localStorage.getItem("clockHistory");
       setHistory(storedHistory ? JSON.parse(storedHistory) : []);
     }
+  };
+
+  // Effect to load history when component mounts
+  useEffect(() => {
+    loadHistory();
   }, []);
 
   // Effect to listen for changes in localStorage from other components (e.g., ClockInOutButton)
   useEffect(() => {
-    const handleStorageChange = () => {
-      if (typeof window !== 'undefined') {
-        const storedHistory = localStorage.getItem("clockHistory");
-        setHistory(storedHistory ? JSON.parse(storedHistory) : []);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('localStorageChange', loadHistory);
+    return () => window.removeEventListener('localStorageChange', loadHistory);
   }, []);
-
 
   const clearHistory = () => {
     if (typeof window !== 'undefined') {
@@ -46,6 +37,7 @@ const ClockHistory = () => {
       localStorage.removeItem("isClockedIn"); // Also clear clock-in status for consistency
       setHistory([]);
       toast.info("Histórico de ponto limpo.");
+      window.dispatchEvent(new Event('localStorageChange')); // Notify other components
     }
   };
 

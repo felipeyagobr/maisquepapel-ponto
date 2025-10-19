@@ -6,13 +6,7 @@ import { LogIn, LogOut } from "lucide-react";
 import CurrentDateTime from "./CurrentDateTime";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-interface ClockEvent {
-  id: string;
-  type: 'entrada' | 'saída';
-  timestamp: string; // ISO string for easy sorting and display
-  displayTime: string; // Formatted time for display
-}
+import { ClockEvent } from "@/types/clock"; // Import ClockEvent
 
 const ClockInOutButton = () => {
   const [isClockedIn, setIsClockedIn] = useState<boolean>(() => {
@@ -40,6 +34,8 @@ const ClockInOutButton = () => {
     // Persist state to localStorage
     localStorage.setItem("isClockedIn", String(isClockedIn));
     localStorage.setItem("clockHistory", JSON.stringify(clockHistory));
+    // Dispatch a custom event to notify other components (like ClockHistory or Reports)
+    window.dispatchEvent(new Event('localStorageChange'));
   }, [isClockedIn, clockHistory]);
 
   const handleClockInOut = () => {
