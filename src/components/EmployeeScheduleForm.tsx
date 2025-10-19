@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -18,22 +19,58 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
 import { EmployeeProfile, Expediente } from "@/types/employee";
-import { Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { Loader2, CalendarDays } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch"; // Import Switch component
 
-const dayNames = [
-  "Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira",
-  "Quinta-feira", "Sexta-feira", "Sábado"
-];
-
-const scheduleSchema = z.object({
-  day_of_week: z.number().min(0).max(6),
-  start_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato de hora inválido (HH:MM)"),
-  end_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato de hora inválido (HH:MM)"),
-});
+const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 const formSchema = z.object({
-  schedules: z.array(scheduleSchema),
+  weekday_start_time: z.string().regex(timeRegex, "Formato de hora inválido (HH:MM)"),
+  weekday_end_time: z.string().regex(timeRegex, "Formato de hora inválido (HH:MM)"),
+  
+  saturday_enabled: z.boolean().default(false),
+  saturday_start_time: z.string().regex(timeRegex, "Formato de hora inválido (HH:MM)").optional(),
+  saturday_end_time: z.string().regex(timeRegex, "Formato de hora inválido (HH:MM)").optional(),
+
+  sunday_enabled: z.boolean().default(false),
+  sunday_start_time: z.string().regex(timeRegex, "Formato de hora inválido (HH:MM)").optional(),
+  sunday_end_time: z.string().regex(timeRegex, "Formato de hora inválido (HH:MM)").optional(),
+}).superRefine((data, ctx) => {
+  // Custom validation for Saturday
+  if (data.saturday_enabled) {
+    if (!data.saturday_start_time) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Hora de início é obrigatória para sábado.",
+        path: ["saturday_start_time"],
+      });
+    }
+    if (!data.saturday_end_time) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Hora de fim é obrigatória para sábado.",
+        path: ["saturday_end_time"],
+      });
+    }
+  }
+  // Custom validation for Sunday
+  if (data.sunday_enabled) {
+    if (!data.sunday_start_time) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Hora de início é obrigatória para domingo.",
+        path: ["sunday_start_time"],
+      });
+    }
+    if (!data.sunday_end_time) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Hora de fim é obrigatória para domingo.",
+        path: ["sunday_end_time"],
+      });
+    }
+  }
 });
 
 interface EmployeeScheduleFormProps {
@@ -48,13 +85,15 @@ const EmployeeScheduleForm = ({ employee, onSaveSuccess }: EmployeeScheduleFormP
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      schedules: [],
+      weekday_start_time: "09:00",
+      weekday_end_time: "18:00",
+      saturday_enabled: false,
+      saturday_start_time: "09:00",
+      saturday_end_time: "13:00",
+      sunday_enabled: false,
+      sunday_start_time: "09:00",
+      sunday_end_time: "13:00",
     },
-  });
-
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "schedules",
   });
 
   useEffect(() => {
@@ -74,14 +113,37 @@ const EmployeeScheduleForm = ({ employee, onSaveSuccess }: EmployeeScheduleFormP
 
       if (error) {
         toast.error("Erro ao carregar expedientes: " + error.message);
-        form.reset({ schedules: [] });
+        form.reset(); // Reset to default values on error
       } else {
-        const formattedSchedules = data.map(s => ({
-          ...s,
-          start_time: s.start_time.substring(0, 5), // Format to HH:MM
-          end_time: s.end_time.substring(0, 5),     // Format to HH:MM
-        }));
-        form.reset({ schedules: formattedSchedules });
+        const schedulesMap = new Map<number, Expediente>();
+        data.forEach(s => schedulesMap.set(s.day_of_week, s));
+
+        let weekdayStart = "09:00";
+        let weekdayEnd = "18:00";
+
+        // Try to find a weekday schedule to set default for Mon-Fri
+        for (let i = 1; i <= 5; i++) { // Monday to Friday
+          if (schedulesMap.has(i)) {
+            const s = schedulesMap.get(i)!;
+            weekdayStart = s.start_time.substring(0, 5);
+            weekdayEnd = s.end_time.substring(0, 5);
+            break; // Take the first one found
+          }
+        }
+
+        const saturdaySchedule = schedulesMap.get(6);
+        const sundaySchedule = schedulesMap.get(0);
+
+        form.reset({
+          weekday_start_time: weekdayStart,
+          weekday_end_time: weekdayEnd,
+          saturday_enabled: !!saturdaySchedule,
+          saturday_start_time: saturdaySchedule ? saturdaySchedule.start_time.substring(0, 5) : "09:00",
+          saturday_end_time: saturdaySchedule ? saturdaySchedule.end_time.substring(0, 5) : "13:00",
+          sunday_enabled: !!sundaySchedule,
+          sunday_start_time: sundaySchedule ? sundaySchedule.start_time.substring(0, 5) : "09:00",
+          sunday_end_time: sundaySchedule ? sundaySchedule.end_time.substring(0, 5) : "13:00",
+        });
       }
       setIsLoading(false);
     };
@@ -98,55 +160,59 @@ const EmployeeScheduleForm = ({ employee, onSaveSuccess }: EmployeeScheduleFormP
     const loadingToastId = toast.loading("Salvando expedientes...");
 
     try {
-      // Fetch existing schedules to determine what to insert, update, or delete
-      const { data: existingSchedules, error: fetchError } = await supabase
+      // Delete all existing schedules for this employee first
+      const { error: deleteError } = await supabase
         .from('expedientes')
-        .select('id, day_of_week')
+        .delete()
         .eq('user_id', employee.id);
 
-      if (fetchError) throw new Error(fetchError.message);
+      if (deleteError) throw new Error(deleteError.message);
 
-      const existingMap = new Map(existingSchedules.map(s => [s.day_of_week, s.id]));
-      const updates = [];
       const inserts = [];
-      const daysToKeep = new Set<number>();
 
-      for (const schedule of values.schedules) {
-        const fullStartTime = `${schedule.start_time}:00`;
-        const fullEndTime = `${schedule.end_time}:00`;
-
-        if (existingMap.has(schedule.day_of_week)) {
-          // Update existing schedule
-          updates.push(
-            supabase
-              .from('expedientes')
-              .update({ start_time: fullStartTime, end_time: fullEndTime, updated_at: new Date().toISOString() })
-              .eq('id', existingMap.get(schedule.day_of_week)!)
-          );
-          daysToKeep.add(schedule.day_of_week);
-        } else {
-          // Insert new schedule
-          inserts.push(
-            supabase
-              .from('expedientes')
-              .insert({
-                user_id: employee.id,
-                day_of_week: schedule.day_of_week,
-                start_time: fullStartTime,
-                end_time: fullEndTime,
-              })
-          );
-          daysToKeep.add(schedule.day_of_week);
-        }
+      // Insert Monday to Friday schedules
+      for (let day = 1; day <= 5; day++) { // Monday (1) to Friday (5)
+        inserts.push(
+          supabase
+            .from('expedientes')
+            .insert({
+              user_id: employee.id,
+              day_of_week: day,
+              start_time: `${values.weekday_start_time}:00`,
+              end_time: `${values.weekday_end_time}:00`,
+            })
+        );
       }
 
-      // Delete schedules that are no longer in the form
-      const deletes = existingSchedules
-        .filter(s => !daysToKeep.has(s.day_of_week))
-        .map(s => supabase.from('expedientes').delete().eq('id', s.id));
+      // Insert Saturday schedule if enabled
+      if (values.saturday_enabled && values.saturday_start_time && values.saturday_end_time) {
+        inserts.push(
+          supabase
+            .from('expedientes')
+            .insert({
+              user_id: employee.id,
+              day_of_week: 6, // Saturday
+              start_time: `${values.saturday_start_time}:00`,
+              end_time: `${values.saturday_end_time}:00`,
+            })
+        );
+      }
 
-      const allOperations = [...updates, ...inserts, ...deletes];
-      const results = await Promise.all(allOperations);
+      // Insert Sunday schedule if enabled
+      if (values.sunday_enabled && values.sunday_start_time && values.sunday_end_time) {
+        inserts.push(
+          supabase
+            .from('expedientes')
+            .insert({
+              user_id: employee.id,
+              day_of_week: 0, // Sunday
+              start_time: `${values.sunday_start_time}:00`,
+              end_time: `${values.sunday_end_time}:00`,
+            })
+        );
+      }
+
+      const results = await Promise.all(inserts);
 
       const hasErrors = results.some(r => r.error);
       if (hasErrors) {
@@ -184,43 +250,17 @@ const EmployeeScheduleForm = ({ employee, onSaveSuccess }: EmployeeScheduleFormP
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {fields.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nenhum expediente configurado. Clique em "Adicionar Dia" para começar.
-              </p>
-            )}
-            {fields.map((field, index) => (
-              <div key={field.id} className="flex flex-col sm:flex-row items-end gap-4 border-b pb-4 last:border-b-0 last:pb-0">
+            {/* Horário de Segunda a Sexta */}
+            <div className="space-y-4 border-b pb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <CalendarDays className="h-5 w-5" /> Segunda a Sexta-feira
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name={`schedules.${index}.day_of_week`}
-                  render={({ field: dayField }) => (
-                    <FormItem className="w-full sm:w-1/3">
-                      <FormLabel>Dia da Semana</FormLabel>
-                      <FormControl>
-                        <select
-                          {...dayField}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          onChange={(e) => dayField.onChange(parseInt(e.target.value))}
-                          value={dayField.value}
-                        >
-                          <option value="">Selecione o dia</option>
-                          {dayNames.map((name, dayIndex) => (
-                            <option key={dayIndex} value={dayIndex}>
-                              {name}
-                            </option>
-                          ))}
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name={`schedules.${index}.start_time`}
+                  name="weekday_start_time"
                   render={({ field }) => (
-                    <FormItem className="w-full sm:w-1/3">
+                    <FormItem>
                       <FormLabel>Início</FormLabel>
                       <FormControl>
                         <Input type="time" {...field} />
@@ -231,9 +271,9 @@ const EmployeeScheduleForm = ({ employee, onSaveSuccess }: EmployeeScheduleFormP
                 />
                 <FormField
                   control={form.control}
-                  name={`schedules.${index}.end_time`}
+                  name="weekday_end_time"
                   render={({ field }) => (
-                    <FormItem className="w-full sm:w-1/3">
+                    <FormItem>
                       <FormLabel>Fim</FormLabel>
                       <FormControl>
                         <Input type="time" {...field} />
@@ -242,25 +282,127 @@ const EmployeeScheduleForm = ({ employee, onSaveSuccess }: EmployeeScheduleFormP
                     </FormItem>
                   )}
                 />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  onClick={() => remove(index)}
-                  className="mt-2 sm:mt-0"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
               </div>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => append({ day_of_week: 1, start_time: "09:00", end_time: "18:00" })}
-              className="w-full"
-            >
-              <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Dia
-            </Button>
+            </div>
+
+            {/* Horário de Sábado */}
+            <div className="space-y-4 border-b pb-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5" /> Sábado
+                </h3>
+                <FormField
+                  control={form.control}
+                  name="saturday_enabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Trabalha no Sábado?</FormLabel>
+                        <FormDescription>
+                          Habilite para definir o horário de trabalho de sábado.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              {form.watch("saturday_enabled") && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  <FormField
+                    control={form.control}
+                    name="saturday_start_time"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Início (Sábado)</FormLabel>
+                        <FormControl>
+                          <Input type="time" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="saturday_end_time"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fim (Sábado)</FormLabel>
+                        <FormControl>
+                          <Input type="time" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Horário de Domingo */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5" /> Domingo
+                </h3>
+                <FormField
+                  control={form.control}
+                  name="sunday_enabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Trabalha no Domingo?</FormLabel>
+                        <FormDescription>
+                          Habilite para definir o horário de trabalho de domingo.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              {form.watch("sunday_enabled") && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  <FormField
+                    control={form.control}
+                    name="sunday_start_time"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Início (Domingo)</FormLabel>
+                        <FormControl>
+                          <Input type="time" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="sunday_end_time"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fim (Domingo)</FormLabel>
+                        <FormControl>
+                          <Input type="time" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+            </div>
+
             <Button type="submit" className="w-full">Salvar Expedientes</Button>
           </form>
         </Form>
