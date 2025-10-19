@@ -30,13 +30,16 @@ const formatMinutesToHours = (totalMinutes: number): string => {
   return `${hours}h ${minutes}m`;
 };
 
-export function useClockReport(dateRange: DateRange | undefined): ClockReport {
+export function useClockReport(dateRange: DateRange | undefined, employeeId?: string): ClockReport {
   const { session } = useSession();
   const [clockEvents, setClockEvents] = useState<ClockEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchClockEvents = async () => {
-    if (!session?.user?.id) {
+    // Determine the user ID to fetch reports for
+    const targetUserId = employeeId || session?.user?.id;
+
+    if (!targetUserId) {
       setClockEvents([]);
       setIsLoading(false);
       return;
@@ -47,7 +50,7 @@ export function useClockReport(dateRange: DateRange | undefined): ClockReport {
       let query = supabase
         .from('pontos')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', targetUserId) // Use targetUserId here
         .order('timestamp_solicitado', { ascending: false }); // Busca em ordem decrescente para exibição
 
       if (dateRange?.from && dateRange?.to) {
@@ -89,7 +92,7 @@ export function useClockReport(dateRange: DateRange | undefined): ClockReport {
     // Escuta por evento customizado para refetch de dados quando um ponto é registrado
     window.addEventListener('supabaseDataChange', fetchClockEvents);
     return () => window.removeEventListener('supabaseDataChange', fetchClockEvents);
-  }, [session, dateRange]);
+  }, [session, dateRange, employeeId]); // Adiciona employeeId como dependência
 
   const { totalMinutesWorked, dailySummaries } = useMemo(() => {
     if (isLoading || !clockEvents.length) {
