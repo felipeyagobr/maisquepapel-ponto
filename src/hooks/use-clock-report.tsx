@@ -4,6 +4,9 @@ import { useState, useEffect, useMemo } from "react";
 import { DateRange } from "react-day-picker";
 import { isWithinInterval, parseISO, differenceInMinutes, startOfDay, endOfDay } from "date-fns";
 import { ClockEvent } from "@/types/clock";
+import { supabase } from "@/integrations/supabase/client";
+import { useSession } from "@/integrations/supabase/auth";
+import { toast } from "sonner";
 
 interface DailySummary {
   date: string; // YYYY-MM-DD
@@ -12,10 +15,12 @@ interface DailySummary {
 }
 
 interface ClockReport {
+  clockEvents: ClockEvent[]; // Adiciona os eventos brutos para uso em outros componentes
   totalMinutesWorked: number;
   totalHoursWorked: string;
   dailySummaries: DailySummary[];
   isLoading: boolean;
+  fetchClockEvents: () => void; // Adiciona função para refetch manual
 }
 
 const formatMinutesToHours = (totalMinutes: number): string => {
@@ -26,52 +31,74 @@ const formatMinutesToHours = (totalMinutes: number): string => {
 };
 
 export function useClockReport(dateRange: DateRange | undefined): ClockReport {
-  const [clockHistory, setClockHistory] = useState<ClockEvent[]>([]);
+  const { session } = useSession();
+  const [clockEvents, setClockEvents] = useState<ClockEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Function to load history from localStorage
-  const loadHistory = () => {
-    if (typeof window !== 'undefined') {
-      const storedHistory = localStorage.getItem("clockHistory");
-      setClockHistory(storedHistory ? JSON.parse(storedHistory) : []);
+  const fetchClockEvents = async () => {
+    if (!session?.user?.id) {
+      setClockEvents([]);
+      setIsLoading(false);
+      return;
     }
-    setIsLoading(false);
+
+    setIsLoading(true);
+    try {
+      let query = supabase
+        .from('pontos')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('timestamp_solicitado', { ascending: false }); // Busca em ordem decrescente para exibição
+
+      if (dateRange?.from && dateRange?.to) {
+        const start = startOfDay(dateRange.from).toISOString();
+        const end = endOfDay(dateRange.to).toISOString();
+        query = query.gte('timestamp_solicitado', start).lte('timestamp_solicitado', end);
+      } else if (dateRange?.from) {
+        const start = startOfDay(dateRange.from).toISOString();
+        const end = endOfDay(dateRange.from).toISOString();
+        query = query.gte('timestamp_solicitado', start).lte('timestamp_solicitado', end);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      const formattedEvents: ClockEvent[] = data.map(event => ({
+        ...event,
+        displayTime: new Date(event.timestamp_solicitado).toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+      }));
+      setClockEvents(formattedEvents);
+    } catch (error: any) {
+      console.error("Erro ao buscar eventos de ponto:", error.message);
+      toast.error("Erro ao carregar histórico de ponto: " + error.message);
+      setClockEvents([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Effect to load history when component mounts
   useEffect(() => {
-    loadHistory();
-  }, []);
-
-  // Effect to listen for changes in localStorage from other components
-  useEffect(() => {
-    window.addEventListener('localStorageChange', loadHistory);
-    return () => window.removeEventListener('localStorageChange', loadHistory);
-  }, []);
+    fetchClockEvents();
+    // Escuta por evento customizado para refetch de dados quando um ponto é registrado
+    window.addEventListener('supabaseDataChange', fetchClockEvents);
+    return () => window.removeEventListener('supabaseDataChange', fetchClockEvents);
+  }, [session, dateRange]);
 
   const { totalMinutesWorked, dailySummaries } = useMemo(() => {
-    if (isLoading || !clockHistory.length) {
+    if (isLoading || !clockEvents.length) {
       return { totalMinutesWorked: 0, dailySummaries: [] };
     }
 
-    let filteredHistory = clockHistory;
-    if (dateRange?.from && dateRange?.to) {
-      const start = startOfDay(dateRange.from);
-      const end = endOfDay(dateRange.to);
-      filteredHistory = clockHistory.filter(event =>
-        isWithinInterval(parseISO(event.timestamp), { start, end })
-      );
-    } else if (dateRange?.from) { // If only 'from' date is selected, consider it a single day
-      const start = startOfDay(dateRange.from);
-      const end = endOfDay(dateRange.from);
-      filteredHistory = clockHistory.filter(event =>
-        isWithinInterval(parseISO(event.timestamp), { start, end })
-      );
-    }
-
-    // Sort history by timestamp in ascending order for processing
-    const sortedHistory = [...filteredHistory].sort((a, b) =>
-      parseISO(a.timestamp).getTime() - parseISO(b.timestamp).getTime()
+    // Ordena o histórico por timestamp em ordem crescente para cálculos de processamento
+    const sortedHistory = [...clockEvents].sort((a, b) =>
+      parseISO(a.timestamp_solicitado).getTime() - parseISO(b.timestamp_solicitado).getTime()
     );
 
     const dailyWorkMinutes: { [key: string]: number } = {};
@@ -79,19 +106,23 @@ export function useClockReport(dateRange: DateRange | undefined): ClockReport {
 
     for (let i = 0; i < sortedHistory.length; i++) {
       const currentEvent = sortedHistory[i];
-      if (currentEvent.type === 'entrada') {
-        // Look for the next 'saída' event
+      if (currentEvent.tipo_batida === 'entrada') {
+        // Procura pelo próximo evento de 'saída'
         let nextSaidaIndex = -1;
         for (let j = i + 1; j < sortedHistory.length; j++) {
-          if (sortedHistory[j].type === 'saída') {
+          // Garante que a 'saída' seja no mesmo dia da 'entrada' para cálculo diário
+          const entradaDay = parseISO(currentEvent.timestamp_solicitado).toISOString().split('T')[0];
+          const saidaDay = parseISO(sortedHistory[j].timestamp_solicitado).toISOString().split('T')[0];
+
+          if (sortedHistory[j].tipo_batida === 'saída' && entradaDay === saidaDay) {
             nextSaidaIndex = j;
             break;
           }
         }
 
         if (nextSaidaIndex !== -1) {
-          const entradaTime = parseISO(currentEvent.timestamp);
-          const saidaTime = parseISO(sortedHistory[nextSaidaIndex].timestamp);
+          const entradaTime = parseISO(currentEvent.timestamp_solicitado);
+          const saidaTime = parseISO(sortedHistory[nextSaidaIndex].timestamp_solicitado);
 
           const duration = differenceInMinutes(saidaTime, entradaTime);
           if (duration > 0) {
@@ -100,13 +131,13 @@ export function useClockReport(dateRange: DateRange | undefined): ClockReport {
             const dateKey = entradaTime.toISOString().split('T')[0]; // YYYY-MM-DD
             dailyWorkMinutes[dateKey] = (dailyWorkMinutes[dateKey] || 0) + duration;
           }
-          i = nextSaidaIndex; // Skip to the 'saída' event
+          i = nextSaidaIndex; // Pula para o evento de 'saída'
         }
       }
     }
 
     const aggregatedDailySummaries: DailySummary[] = Object.keys(dailyWorkMinutes)
-      .sort() // Sort by date
+      .sort() // Ordena por data
       .map(dateKey => ({
         date: dateKey,
         totalMinutes: dailyWorkMinutes[dateKey],
@@ -117,14 +148,16 @@ export function useClockReport(dateRange: DateRange | undefined): ClockReport {
       totalMinutesWorked: totalWorkMinutes,
       dailySummaries: aggregatedDailySummaries,
     };
-  }, [clockHistory, dateRange, isLoading]);
+  }, [clockEvents, dateRange, isLoading]);
 
   const totalHoursWorked = formatMinutesToHours(totalMinutesWorked);
 
   return {
+    clockEvents,
     totalMinutesWorked,
     totalHoursWorked,
     dailySummaries,
     isLoading,
+    fetchClockEvents,
   };
 }
