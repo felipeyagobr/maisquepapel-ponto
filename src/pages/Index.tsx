@@ -2,7 +2,8 @@
 
 import Layout from "@/components/layout/Layout";
 import ClockInOutButton from "@/components/ClockInOutButton";
-import ClockHistory from "@/components/ClockHistory"; // Import the new component
+import ClockHistory from "@/components/ClockHistory";
+import DailyClockSummary from "@/components/DailyClockSummary"; // Import the new component
 
 const Index = () => {
   return (
@@ -19,7 +20,8 @@ const Index = () => {
             <ClockInOutButton />
           </div>
         </div>
-        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm p-8">
+        <div className="flex flex-col gap-6"> {/* Changed to flex-col to stack cards */}
+          <DailyClockSummary /> {/* New component for daily summary */}
           <ClockHistory />
         </div>
       </div>
