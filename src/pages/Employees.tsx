@@ -11,35 +11,64 @@ import EmployeeForm from "@/components/EmployeeForm";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { EmployeeProfile } from "@/types/employee";
-import { useSession } from "@/integrations/supabase/auth"; // Import useSession
+import { useSession } from "@/integrations/supabase/auth";
 import { useNavigate } from "react-router-dom";
 
 const Employees = () => {
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<EmployeeProfile | undefined>(undefined);
-  const [isLoading, setIsLoading] = useState(true);
-  const { session, isLoading: sessionLoading } = useSession(); // Get session and loading state
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
+  const [currentUserProfile, setCurrentUserProfile] = useState<EmployeeProfile | null>(null);
+  const [isCurrentUserProfileLoading, setIsCurrentUserProfileLoading] = useState(true);
+
+  const { session, isLoading: sessionLoading } = useSession();
   const navigate = useNavigate();
 
+  // Effect to fetch current user's profile
+  useEffect(() => {
+    const fetchCurrentUserProfile = async () => {
+      if (session?.user) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, role, avatar_url, updated_at')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (error) {
+          toast.error("Erro ao carregar perfil do usuário atual: " + error.message);
+          setCurrentUserProfile(null);
+        } else if (data) {
+          setCurrentUserProfile({ ...data, email: session.user.email || 'N/A' });
+        } else {
+          setCurrentUserProfile(null);
+        }
+      }
+      setIsCurrentUserProfileLoading(false);
+    };
+
+    if (!sessionLoading) {
+      fetchCurrentUserProfile();
+    }
+  }, [session, sessionLoading]);
+
   const fetchEmployees = async () => {
-    setIsLoading(true);
+    setIsLoadingEmployees(true);
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, first_name, last_name, role, avatar_url, updated_at');
 
     if (profilesError) {
       toast.error("Erro ao carregar perfis: " + profilesError.message);
-      setIsLoading(false);
+      setIsLoadingEmployees(false);
       return;
     }
 
-    // Fetch user emails from auth.users table
     const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
 
     if (usersError) {
       toast.error("Erro ao carregar usuários de autenticação: " + usersError.message);
-      setIsLoading(false);
+      setIsLoadingEmployees(false);
       return;
     }
 
@@ -47,28 +76,27 @@ const Employees = () => {
 
     const combinedEmployees: EmployeeProfile[] = profiles.map(profile => ({
       ...profile,
-      email: usersMap.get(profile.id) || 'N/A', // Get email from auth.users
+      email: usersMap.get(profile.id) || 'N/A',
     }));
 
     setEmployees(combinedEmployees);
-    setIsLoading(false);
+    setIsLoadingEmployees(false);
   };
 
+  // Effect to fetch all employees if current user is admin
   useEffect(() => {
-    if (!sessionLoading) {
-      // Check if user is admin
-      const userRole = employees.find(emp => emp.id === session?.user?.id)?.role;
-      if (!session || userRole !== 'admin') {
+    if (!isCurrentUserProfileLoading) {
+      if (currentUserProfile?.role === 'admin') {
+        fetchEmployees();
+      } else {
         toast.error("Acesso negado. Apenas administradores podem gerenciar funcionários.");
-        navigate('/'); // Redirect non-admins to home
-        return;
+        navigate('/');
       }
-      fetchEmployees();
     }
-  }, [session, sessionLoading, navigate]); // Depend on session and sessionLoading
+  }, [isCurrentUserProfileLoading, currentUserProfile, navigate]);
 
   const handleSaveSuccess = () => {
-    fetchEmployees(); // Re-fetch employees after save/invite
+    fetchEmployees();
     setIsFormOpen(false);
     setEditingEmployee(undefined);
   };
@@ -79,15 +107,13 @@ const Employees = () => {
   };
 
   const handleDeleteEmployee = async (id: string) => {
-    // First, delete the user from Supabase Auth
     const { error: authError } = await supabase.auth.admin.deleteUser(id);
 
     if (authError) {
       toast.error("Erro ao excluir usuário: " + authError.message);
     } else {
-      // The RLS policy on profiles table (ON DELETE CASCADE) should handle profile deletion
       toast.success("Funcionário excluído com sucesso!");
-      fetchEmployees(); // Re-fetch employees
+      fetchEmployees();
     }
   };
 
@@ -96,7 +122,7 @@ const Employees = () => {
     onDelete: handleDeleteEmployee,
   }), [employees]);
 
-  if (sessionLoading || isLoading) {
+  if (sessionLoading || isCurrentUserProfileLoading || isLoadingEmployees) {
     return (
       <Layout>
         <div className="flex flex-1 items-center justify-center">
@@ -106,8 +132,7 @@ const Employees = () => {
     );
   }
 
-  // Check if the current user is an admin before rendering content
-  const currentUserProfile = employees.find(emp => emp.id === session?.user?.id);
+  // Final check for admin role before rendering the main content
   if (!currentUserProfile || currentUserProfile.role !== 'admin') {
     return (
       <Layout>
@@ -132,7 +157,7 @@ const Employees = () => {
         <Dialog open={isFormOpen} onOpenChange={(open) => {
           setIsFormOpen(open);
           if (!open) {
-            setEditingEmployee(undefined); // Clear editing state when dialog closes
+            setEditingEmployee(undefined);
           }
         }}>
           <DialogTrigger asChild>
