@@ -4,17 +4,18 @@ import { useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { DateRange } from "react-day-picker";
-import { format, parseISO } from "date-fns"; // Adicionado parseISO
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useClockReport } from "@/hooks/use-clock-report";
-import { Loader2, Clock } from "lucide-react";
+import { Loader2, Clock, History, MapPin, Camera } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 const Reports = () => {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const { totalHoursWorked, dailySummaries, isLoading } = useClockReport(dateRange);
+  const { totalHoursWorked, dailySummaries, clockEvents, isLoading } = useClockReport(dateRange);
 
   return (
     <Layout>
@@ -52,7 +53,9 @@ const Reports = () => {
 
         <Card className="flex-1">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Registros Diários</CardTitle>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <History className="h-5 w-5" /> Registros Diários
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -83,6 +86,70 @@ const Reports = () => {
                     ))}
                   </TableBody>
                 </Table>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="flex-1">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <History className="h-5 w-5" /> Eventos de Ponto Detalhados
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center h-40">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : clockEvents.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Nenhum evento de ponto encontrado para o período selecionado.
+              </p>
+            ) : (
+              <ScrollArea className="h-[300px] w-full rounded-md border p-4">
+                <ul className="space-y-3">
+                  {clockEvents.map((event) => (
+                    <li key={event.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm border-b pb-2 last:border-b-0 last:pb-0">
+                      <div className="flex items-center gap-2 mb-1 sm:mb-0">
+                        <span className="font-medium">
+                          {format(parseISO(event.timestamp_solicitado), "dd/MM/yyyy", { locale: ptBR })}
+                        </span>
+                        <span className="text-muted-foreground">{event.displayTime}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={event.tipo_batida === 'entrada' ? "default" : "secondary"}
+                          className={event.tipo_batida === 'entrada' ? "bg-green-500 hover:bg-green-600 text-white" : "bg-red-500 hover:bg-red-600 text-white"}
+                        >
+                          {event.tipo_batida === 'entrada' ? "Entrada" : "Saída"}
+                        </Badge>
+                        {event.latitude && event.longitude && (
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:text-blue-700"
+                            title="Ver Localização"
+                          >
+                            <MapPin className="h-4 w-4" />
+                          </a>
+                        )}
+                        {event.foto_url && (
+                          <a
+                            href={event.foto_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:text-blue-700"
+                            title="Ver Foto"
+                          >
+                            <Camera className="h-4 w-4" />
+                          </a>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </ScrollArea>
             )}
           </CardContent>
