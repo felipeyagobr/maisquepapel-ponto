@@ -100,7 +100,7 @@ const ClockInOutButton = () => {
       if (!pendingActionType || !locationData || !imageData) {
         throw new Error("Dados incompletos para registrar o ponto.");
       }
-      await performClockAction(pendingActionType, imageData, locationData);
+      await performClockAction(pendingActionType, imageData, locationData); // Await this
     } catch (error) {
       // Error handled by useClockStatus hook, just reset local state
     } finally {

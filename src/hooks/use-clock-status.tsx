@@ -96,8 +96,9 @@ export function useClockStatus(): ClockStatus {
   useEffect(() => {
     if (session) {
       fetchClockStatus();
-      window.addEventListener('supabaseDataChange', fetchClockStatus);
-      return () => window.removeEventListener('supabaseDataChange', fetchClockStatus);
+      // Remove o listener de evento global, pois a atualização será direta
+      // window.addEventListener('supabaseDataChange', fetchClockStatus);
+      // return () => window.removeEventListener('supabaseDataChange', fetchClockStatus);
     }
   }, [session, fetchClockStatus]);
 
@@ -161,14 +162,17 @@ export function useClockStatus(): ClockStatus {
 
       toast.dismiss(processingToastId);
       toast.success(`Ponto registrado: ${actionType === 'entrada' ? 'Entrada' : actionType === 'saída' ? 'Saída' : actionType === 'saida_almoco' ? 'Saída para Almoço' : 'Volta do Almoço'} às ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`);
-      window.dispatchEvent(new Event('supabaseDataChange')); // Notifica outros componentes para refetch
+      
+      // Chamar fetchClockStatus diretamente e aguardar a atualização do estado
+      await fetchClockStatus();
+
     } catch (error: any) {
       console.error("Erro ao registrar ponto:", error.message);
       toast.dismiss(processingToastId);
       toast.error("Erro ao registrar ponto: " + error.message);
       throw error; // Re-throw to allow component to handle processing state
     }
-  }, [session]);
+  }, [session, fetchClockStatus]);
 
   return {
     isClockedIn,

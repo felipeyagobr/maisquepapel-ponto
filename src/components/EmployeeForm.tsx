@@ -14,6 +14,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -133,13 +134,66 @@ const EmployeeForm = ({ onSaveSuccess, onClose, initialData }: EmployeeFormProps
           {initialData ? "Faça alterações nos detalhes do funcionário aqui." : "Preencha os detalhes para convidar um novo funcionário."}
         </DialogDescription>
       </DialogHeader>
-      {/* Conteúdo simplificado para depuração */}
-      <div className="p-4 text-center text-lg font-semibold">
-        Formulário de Funcionário (Teste)
-      </div>
-      <DialogFooter>
-        <Button type="button" onClick={onClose}>Fechar</Button>
-      </DialogFooter>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nome Completo</FormLabel>
+                <FormControl>
+                  <Input placeholder="Nome e Sobrenome" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="email@exemplo.com" {...field} type="email" disabled={!!initialData} />
+                </FormControl>
+                <FormDescription>
+                  O email não pode ser alterado após a criação.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="role"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cargo</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um cargo" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="employee">Funcionário</SelectItem>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="submit">
+              {initialData ? "Salvar Alterações" : "Convidar Funcionário"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Form>
     </DialogContent>
   );
 };
