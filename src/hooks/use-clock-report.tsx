@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react"; // Adicionado useCallback
 import { DateRange } from "react-day-picker";
 import { isWithinInterval, parseISO, differenceInMinutes, startOfDay, endOfDay } from "date-fns";
 import { ClockEvent } from "@/types/clock";
@@ -35,31 +35,32 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
   const [clockEvents, setClockEvents] = useState<ClockEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchClockEvents = async () => {
+  const fetchClockEvents = useCallback(async () => {
     if (sessionLoading) {
-      setIsLoading(true);
+      // Se a sessão ainda está carregando, apenas retornamos.
+      // O estado inicial de isLoading (definido por useState(true)) já cobre isso.
       return;
     }
 
     const targetUserId = employeeId || session?.user?.id;
 
-    // Se o admin está visualizando todos os funcionários e nenhum funcionário específico foi selecionado,
-    // não aplicamos o filtro de user_id. Caso contrário, se não houver targetUserId e não for admin visualizando todos,
-    // não há dados para buscar.
     if (!targetUserId && !isAdminViewingAll) {
+      // Se não há um ID de usuário alvo e não é um admin visualizando todos,
+      // não há nada para buscar. Definimos eventos como vazio e loading como false.
       setClockEvents([]);
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    // Se chegamos aqui, significa que temos um targetUserId ou isAdminViewingAll é true,
+    // então estamos prestes a buscar dados. Definimos loading como true.
+    setIsLoading(true); 
     try {
       let query = supabase
         .from('pontos')
         .select('*')
-        .order('timestamp_solicitado', { ascending: true }); // Alterado para ordem crescente
+        .order('timestamp_solicitado', { ascending: true });
 
-      // Aplica o filtro de user_id apenas se um funcionário específico for selecionado
       if (targetUserId) {
         query = query.eq('user_id', targetUserId);
       }
@@ -108,7 +109,7 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
           minute: "2-digit",
           second: "2-digit",
         }),
-        employeeName: employeeNamesMap.get(event.user_id) || undefined, // Adiciona o nome do funcionário
+        employeeName: employeeNamesMap.get(event.user_id) || undefined,
       }));
       setClockEvents(formattedEvents);
     } catch (error: any) {
@@ -118,7 +119,7 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [session, dateRange, employeeId, sessionLoading, isAdminViewingAll]);
 
   useEffect(() => {
     if (!sessionLoading) {
@@ -126,14 +127,13 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
     }
     window.addEventListener('supabaseDataChange', fetchClockEvents);
     return () => window.removeEventListener('supabaseDataChange', fetchClockEvents);
-  }, [session, dateRange, employeeId, sessionLoading, isAdminViewingAll]); // Adicionar isAdminViewingAll às dependências
+  }, [sessionLoading, fetchClockEvents]); // Simplified dependencies for useEffect, as fetchClockEvents is useCallback'd
 
   const { totalMinutesWorked, dailySummaries } = useMemo(() => {
     if (isLoading || !clockEvents.length) {
       return { totalMinutesWorked: 0, dailySummaries: [] };
     }
 
-    // A ordenação já é feita na busca do Supabase, então esta linha pode ser removida ou mantida para redundância
     const sortedHistory = [...clockEvents].sort((a, b) =>
       parseISO(a.timestamp_solicitado).getTime() - parseISO(b.timestamp_solicitado).getTime()
     );
@@ -154,13 +154,11 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
           const nextEvent = sortedHistory[j];
           const nextEventDateKey = parseISO(nextEvent.timestamp_solicitado).toISOString().split('T')[0];
 
-          // Process events only within the same day
           if (dateKey !== nextEventDateKey) {
             break;
           }
 
           if (nextEvent.tipo_batida === 'saida_almoco' && !lunchStart) {
-            // Calculate work duration before lunch
             const durationBeforeLunch = differenceInMinutes(parseISO(nextEvent.timestamp_solicitado), workSegmentStart);
             if (durationBeforeLunch > 0) {
               dailyWorkMinutes[dateKey] = (dailyWorkMinutes[dateKey] || 0) + durationBeforeLunch;
@@ -168,26 +166,22 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
             lunchStart = parseISO(nextEvent.timestamp_solicitado);
           } else if (nextEvent.tipo_batida === 'volta_almoco' && lunchStart && !lunchEnd) {
             lunchEnd = parseISO(nextEvent.timestamp_solicitado);
-            workSegmentStart = parseISO(nextEvent.timestamp_solicitado); // New work segment starts after lunch
+            workSegmentStart = parseISO(nextEvent.timestamp_solicitado);
           } else if (nextEvent.tipo_batida === 'saída') {
-            // Calculate work duration after lunch (or if no lunch was taken)
             const durationAfterLunch = differenceInMinutes(parseISO(nextEvent.timestamp_solicitado), workSegmentStart);
             if (durationAfterLunch > 0) {
               dailyWorkMinutes[dateKey] = (dailyWorkMinutes[dateKey] || 0) + durationAfterLunch;
             }
-            i = j; // Move index to the 'saída' event
+            i = j;
             break;
           }
-          // If we reach the end of the day without a 'saída', the last segment is considered open.
-          // For simplicity, we only calculate completed segments.
           if (j === sortedHistory.length - 1) {
-            i = j; // Ensure we don't re-process this 'entrada'
+            i = j;
           }
         }
       }
     }
 
-    // Sum up all daily work minutes for total
     for (const dateKey in dailyWorkMinutes) {
       totalWorkMinutes += dailyWorkMinutes[dateKey];
     }
@@ -204,7 +198,7 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
       totalMinutesWorked: totalWorkMinutes,
       dailySummaries: aggregatedDailySummaries,
     };
-  }, [clockEvents, dateRange]);
+  }, [clockEvents, dateRange, isLoading]); // Adicionado isLoading como dependência para re-calcular se o estado de carregamento mudar
 
   const totalHoursWorked = formatMinutesToHours(totalMinutesWorked);
 
