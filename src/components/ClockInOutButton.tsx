@@ -1,16 +1,58 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Clock } from "lucide-react";
+import { Clock, LogIn, LogOut } from "lucide-react";
 import CurrentDateTime from "./CurrentDateTime";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const ClockInOutButton = () => {
-  // For now, this button will just display a message.
-  // We'll add actual clock-in/out logic later.
+  const [isClockedIn, setIsClockedIn] = useState<boolean>(() => {
+    // Initialize from localStorage or default to false
+    if (typeof window !== 'undefined') {
+      const storedStatus = localStorage.getItem("isClockedIn");
+      return storedStatus === "true";
+    }
+    return false;
+  });
+  const [lastActionTime, setLastActionTime] = useState<string | null>(() => {
+    // Initialize from localStorage
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem("lastActionTime");
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    // Persist state to localStorage
+    localStorage.setItem("isClockedIn", String(isClockedIn));
+    if (lastActionTime) {
+      localStorage.setItem("lastActionTime", lastActionTime);
+    } else {
+      localStorage.removeItem("lastActionTime");
+    }
+  }, [isClockedIn, lastActionTime]);
+
   const handleClockInOut = () => {
-    console.log("Botão de bater ponto clicado!");
-    // Implementar lógica de bater ponto aqui
+    const now = new Date();
+    const formattedTime = now.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+
+    if (isClockedIn) {
+      // Clocking out
+      setIsClockedIn(false);
+      setLastActionTime(formattedTime);
+      toast.success(`Ponto registrado: Saída às ${formattedTime}`);
+    } else {
+      // Clocking in
+      setIsClockedIn(true);
+      setLastActionTime(formattedTime);
+      toast.info(`Ponto registrado: Entrada às ${formattedTime}`);
+    }
   };
 
   return (
@@ -18,14 +60,26 @@ const ClockInOutButton = () => {
       <CurrentDateTime />
       <Button
         onClick={handleClockInOut}
-        className="mt-4 px-8 py-6 text-lg font-semibold rounded-full shadow-lg transition-all duration-300 hover:scale-105"
+        className={cn(
+          "mt-4 px-8 py-6 text-lg font-semibold rounded-full shadow-lg transition-all duration-300 hover:scale-105",
+          isClockedIn ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
+        )}
       >
-        <Clock className="mr-2 h-6 w-6" />
-        Bater Ponto
+        {isClockedIn ? (
+          <LogOut className="mr-2 h-6 w-6" />
+        ) : (
+          <LogIn className="mr-2 h-6 w-6" />
+        )}
+        {isClockedIn ? "Bater Saída" : "Bater Entrada"}
       </Button>
       <p className="text-sm text-muted-foreground mt-2">
-        Clique para registrar sua entrada/saída.
+        {isClockedIn ? "Você está atualmente DENTRO." : "Você está atualmente FORA."}
       </p>
+      {lastActionTime && (
+        <p className="text-sm text-muted-foreground">
+          Último registro: {lastActionTime}
+        </p>
+      )}
     </div>
   );
 };
