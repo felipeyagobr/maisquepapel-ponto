@@ -11,4 +11,5 @@ export interface ClockEvent {
   admin_id: string | null;
   created_at: string; // Do banco de dados
   displayTime: string; // Hora formatada para exibição (apenas no lado do cliente)
+  employeeName?: string; // Nome do funcionário para exibição em relatórios de admin
 }

@@ -80,13 +80,35 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
         throw new Error(error.message);
       }
 
-      const formattedEvents: ClockEvent[] = data.map(event => ({
+      let enrichedEvents = data;
+      let employeeNamesMap = new Map<string, string>();
+
+      // Se for um admin visualizando todos os funcionários, busca os nomes
+      if (isAdminViewingAll && data.length > 0) {
+        const uniqueUserIds = Array.from(new Set(data.map(event => event.user_id)));
+        const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name')
+            .in('id', uniqueUserIds);
+
+        if (profilesError) {
+            console.error("Erro ao buscar perfis para o relatório de ponto:", profilesError.message);
+            // Continua sem os nomes se houver um erro
+        } else {
+            profilesData.forEach(profile => {
+                employeeNamesMap.set(profile.id, `${profile.first_name || ''} ${profile.last_name || ''}`.trim());
+            });
+        }
+      }
+
+      const formattedEvents: ClockEvent[] = enrichedEvents.map(event => ({
         ...event,
         displayTime: new Date(event.timestamp_solicitado).toLocaleTimeString("pt-BR", {
           hour: "2-digit",
           minute: "2-digit",
           second: "2-digit",
         }),
+        employeeName: employeeNamesMap.get(event.user_id) || undefined, // Adiciona o nome do funcionário
       }));
       setClockEvents(formattedEvents);
     } catch (error: any) {

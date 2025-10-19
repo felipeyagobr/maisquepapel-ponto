@@ -288,6 +288,11 @@ const Reports = () => {
                   {clockEvents.map((event) => (
                     <li key={event.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm border-b pb-2 last:border-b-0 last:pb-0">
                       <div className="flex items-center gap-2 mb-1 sm:mb-0">
+                        {isAdmin && isViewingAllEmployees && event.employeeName && (
+                          <span className="font-semibold text-primary-foreground/80 mr-2">
+                            {event.employeeName}:
+                          </span>
+                        )}
                         <span className="font-medium">
                           {format(parseISO(event.timestamp_solicitado), "dd/MM/yyyy", { locale: ptBR })}
                         </span>
