@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, Loader2 } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { createColumns } from "./employees/columns";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"; // Import Dialog components
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import EmployeeForm from "@/components/EmployeeForm";
-import EmployeeScheduleForm from "@/components/EmployeeScheduleForm"; // Import the new schedule form
+import EmployeeScheduleForm from "@/components/EmployeeScheduleForm";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { EmployeeProfile } from "@/types/employee";
@@ -19,9 +19,9 @@ import { Card, CardContent } from "@/components/ui/card";
 const Employees = () => {
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false);
-  const [isScheduleFormOpen, setIsScheduleFormOpen] = useState(false); // New state for schedule form
+  const [isScheduleFormOpen, setIsScheduleFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<EmployeeProfile | undefined>(undefined);
-  const [managingScheduleEmployee, setManagingScheduleEmployee] = useState<EmployeeProfile | undefined>(undefined); // New state for schedule management
+  const [managingScheduleEmployee, setManagingScheduleEmployee] = useState<EmployeeProfile | undefined>(undefined);
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
   const [currentUserProfile, setCurrentUserProfile] = useState<EmployeeProfile | null>(null);
   const [isCurrentUserProfileLoading, setIsCurrentUserProfileLoading] = useState(true);
@@ -29,12 +29,8 @@ const Employees = () => {
   const { session, isLoading: sessionLoading } = useSession();
   const navigate = useNavigate();
 
-  console.log("Employees component rendered. isEmployeeFormOpen:", isEmployeeFormOpen); // Log 1
-
-  // URL da Edge Function (substitua 'dpmlhdbqzejijhnabges' pelo seu Project ID do Supabase)
   const MANAGE_USERS_EDGE_FUNCTION_URL = `https://dpmlhdbqzejijhnabges.supabase.co/functions/v1/manage-users`;
 
-  // Effect to fetch current user's profile
   useEffect(() => {
     const fetchCurrentUserProfile = async () => {
       if (session?.user) {
@@ -92,7 +88,6 @@ const Employees = () => {
     }
   };
 
-  // Effect to fetch all employees if current user is admin
   useEffect(() => {
     if (!isCurrentUserProfileLoading) {
       if (currentUserProfile?.role === 'admin') {
@@ -111,7 +106,6 @@ const Employees = () => {
   };
 
   const handleScheduleSaveSuccess = () => {
-    // No need to refetch employees, just close the dialog
     setIsScheduleFormOpen(false);
     setManagingScheduleEmployee(undefined);
     toast.success("Expediente salvo com sucesso!");
@@ -158,13 +152,12 @@ const Employees = () => {
   const columns = useMemo(() => createColumns({
     onEdit: handleEditClick,
     onDelete: handleDeleteEmployee,
-    onManageSchedule: handleManageScheduleClick, // Pass the new handler
+    onManageSchedule: handleManageScheduleClick,
   }), [employees, session?.access_token]);
 
-  const handleAddEmployeeClick = () => {
-    console.log("Add Employee button clicked!"); // Log 2
-    setEditingEmployee(undefined);
-    setIsEmployeeFormOpen(true);
+  // Função para preparar o estado para adicionar um novo funcionário
+  const prepareForAddEmployee = () => {
+    setEditingEmployee(undefined); // Garante que não estamos editando
   };
 
   if (sessionLoading || isCurrentUserProfileLoading || isLoadingEmployees) {
@@ -177,7 +170,6 @@ const Employees = () => {
     );
   }
 
-  // Final check for admin role before rendering the main content
   if (!currentUserProfile || currentUserProfile.role !== 'admin') {
     return (
       <Layout>
@@ -200,14 +192,18 @@ const Employees = () => {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Funcionários</h1>
         <Dialog open={isEmployeeFormOpen} onOpenChange={(open) => {
-          console.log("Dialog onOpenChange:", open); // Log 3
           setIsEmployeeFormOpen(open);
-          if (!open) {
+          if (open && editingEmployee === undefined) {
+            // Se o diálogo está abrindo e não estamos em modo de edição,
+            // garantimos que o formulário esteja limpo para um novo funcionário.
+            setEditingEmployee(undefined);
+          } else if (!open) {
+            // Ao fechar, sempre limpamos o estado de edição.
             setEditingEmployee(undefined);
           }
         }}>
           <DialogTrigger asChild>
-            <Button className="flex items-center gap-2" onClick={handleAddEmployeeClick}>
+            <Button className="flex items-center gap-2" onClick={prepareForAddEmployee}>
               <PlusCircle className="h-4 w-4" />
               Adicionar Funcionário
             </Button>
@@ -219,7 +215,6 @@ const Employees = () => {
           />
         </Dialog>
 
-        {/* Dialog for Employee Schedule Form */}
         <Dialog open={isScheduleFormOpen} onOpenChange={(open) => {
           setIsScheduleFormOpen(open);
           if (!open) {
