@@ -18,13 +18,23 @@ const navItems: NavItem[] = [
   { href: "/settings", label: "Configurações", icon: Settings },
 ];
 
-const Sidebar = () => {
+interface SidebarProps {
+  onClose?: () => void; // Optional prop to close the sidebar
+}
+
+const Sidebar = ({ onClose }: SidebarProps) => {
   const location = useLocation();
+
+  const handleNavigationClick = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
 
   return (
     <div className="flex h-full max-h-screen flex-col gap-2">
       <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-        <Link to="/" className="flex items-center gap-2 font-semibold">
+        <Link to="/" className="flex items-center gap-2 font-semibold" onClick={handleNavigationClick}>
           <span className="text-lg">Mais Que Papel</span>
         </Link>
       </div>
@@ -38,6 +48,7 @@ const Sidebar = () => {
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
                 location.pathname === item.href && "bg-muted text-primary" // Active state styling
               )}
+              onClick={handleNavigationClick} // Close sidebar on click
             >
               <item.icon className="h-4 w-4" />
               {item.label}

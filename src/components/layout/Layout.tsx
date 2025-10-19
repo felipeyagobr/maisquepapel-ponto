@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const isMobile = useIsMobile();
+  const [isSheetOpen, setIsSheetOpen] = useState(false); // State to control the Sheet
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
@@ -29,7 +30,7 @@ const Layout = ({ children }: LayoutProps) => {
         {/* Mobile Header with Sheet Trigger */}
         {isMobile && (
           <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
-            <Sheet>
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}> {/* Control Sheet state */}
               <SheetTrigger asChild>
                 <Button variant="outline" size="icon" className="shrink-0 md:hidden">
                   <Menu className="h-5 w-5" />
@@ -37,7 +38,7 @@ const Layout = ({ children }: LayoutProps) => {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="flex flex-col">
-                <Sidebar />
+                <Sidebar onClose={() => setIsSheetOpen(false)} /> {/* Pass onClose prop */}
               </SheetContent>
             </Sheet>
             <Link to="/" className="flex items-center gap-2 font-semibold">
