@@ -1,21 +1,22 @@
 "use client";
 
 import Layout from "@/components/layout/Layout";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Import Card components
 
 const Settings = () => {
   return (
     <Layout>
       <h1 className="text-2xl font-bold mb-4">Configurações</h1>
-      <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm p-8">
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h3 className="text-2xl font-bold tracking-tight">
+      <Card className="flex flex-1 items-center justify-center p-8"> {/* Use Card here */}
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold tracking-tight">
             Ajuste as configurações do seu aplicativo
-          </h3>
-          <p className="text-sm text-muted-foreground">
+          </CardTitle>
+          <CardDescription className="text-sm text-muted-foreground mt-2">
             Personalize as opções e preferências do sistema.
-          </p>
-        </div>
-      </div>
+          </CardDescription>
+        </CardHeader>
+      </Card>
     </Layout>
   );
 };

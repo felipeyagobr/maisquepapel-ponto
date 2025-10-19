@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { EmployeeProfile } from "@/types/employee";
 import { useSession } from "@/integrations/supabase/auth";
 import { useNavigate } from "react-router-dom";
+import { Card, CardContent } from "@/components/ui/card"; // Import Card components
 
 const Employees = () => {
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
@@ -96,7 +97,7 @@ const Employees = () => {
         navigate('/');
       }
     }
-  }, [isCurrentUserProfileLoading, currentUserProfile, navigate, session?.access_token]); // Added session.access_token to dependencies
+  }, [isCurrentUserProfileLoading, currentUserProfile, navigate, session?.access_token]);
 
   const handleSaveSuccess = () => {
     fetchEmployees();
@@ -140,7 +141,7 @@ const Employees = () => {
   const columns = useMemo(() => createColumns({
     onEdit: handleEditClick,
     onDelete: handleDeleteEmployee,
-  }), [employees, session?.access_token]); // Added session.access_token to dependencies
+  }), [employees, session?.access_token]);
 
   if (sessionLoading || isCurrentUserProfileLoading || isLoadingEmployees) {
     return (
@@ -193,9 +194,11 @@ const Employees = () => {
           />
         </Dialog>
       </div>
-      <div className="flex flex-1 flex-col rounded-lg border border-dashed shadow-sm p-4">
-        <DataTable columns={columns} data={employees} />
-      </div>
+      <Card className="flex-1"> {/* Use Card here */}
+        <CardContent className="p-4"> {/* Add padding to CardContent */}
+          <DataTable columns={columns} data={employees} />
+        </CardContent>
+      </Card>
     </Layout>
   );
 };
