@@ -29,6 +29,8 @@ const Employees = () => {
   const { session, isLoading: sessionLoading } = useSession();
   const navigate = useNavigate();
 
+  console.log("Employees component rendered. isEmployeeFormOpen:", isEmployeeFormOpen); // Log 1
+
   // URL da Edge Function (substitua 'dpmlhdbqzejijhnabges' pelo seu Project ID do Supabase)
   const MANAGE_USERS_EDGE_FUNCTION_URL = `https://dpmlhdbqzejijhnabges.supabase.co/functions/v1/manage-users`;
 
@@ -159,6 +161,12 @@ const Employees = () => {
     onManageSchedule: handleManageScheduleClick, // Pass the new handler
   }), [employees, session?.access_token]);
 
+  const handleAddEmployeeClick = () => {
+    console.log("Add Employee button clicked!"); // Log 2
+    setEditingEmployee(undefined);
+    setIsEmployeeFormOpen(true);
+  };
+
   if (sessionLoading || isCurrentUserProfileLoading || isLoadingEmployees) {
     return (
       <Layout>
@@ -192,13 +200,14 @@ const Employees = () => {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Funcionários</h1>
         <Dialog open={isEmployeeFormOpen} onOpenChange={(open) => {
+          console.log("Dialog onOpenChange:", open); // Log 3
           setIsEmployeeFormOpen(open);
           if (!open) {
             setEditingEmployee(undefined);
           }
         }}>
           <DialogTrigger asChild>
-            <Button className="flex items-center gap-2" onClick={() => setEditingEmployee(undefined)}>
+            <Button className="flex items-center gap-2" onClick={handleAddEmployeeClick}>
               <PlusCircle className="h-4 w-4" />
               Adicionar Funcionário
             </Button>
