@@ -30,17 +30,12 @@ const formatMinutesToHours = (totalMinutes: number): string => {
   return `${hours}h ${minutes}m`;
 };
 
-// Constantes para a lógica do almoço
-const LUNCH_THRESHOLD_MINUTES = 360; // 6 horas
-const LUNCH_DEDUCTION_MINUTES = 60; // 1 hora
-
 export function useClockReport(dateRange: DateRange | undefined, employeeId?: string): ClockReport {
   const { session } = useSession();
   const [clockEvents, setClockEvents] = useState<ClockEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchClockEvents = async () => {
-    // Determine the user ID to fetch reports for
     const targetUserId = employeeId || session?.user?.id;
 
     if (!targetUserId) {
@@ -54,8 +49,8 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
       let query = supabase
         .from('pontos')
         .select('*')
-        .eq('user_id', targetUserId) // Use targetUserId here
-        .order('timestamp_solicitado', { ascending: false }); // Busca em ordem decrescente para exibição
+        .eq('user_id', targetUserId)
+        .order('timestamp_solicitado', { ascending: false });
 
       if (dateRange?.from && dateRange?.to) {
         const start = startOfDay(dateRange.from).toISOString();
@@ -93,17 +88,15 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
 
   useEffect(() => {
     fetchClockEvents();
-    // Escuta por evento customizado para refetch de dados quando um ponto é registrado
     window.addEventListener('supabaseDataChange', fetchClockEvents);
     return () => window.removeEventListener('supabaseDataChange', fetchClockEvents);
-  }, [session, dateRange, employeeId]); // Adiciona employeeId como dependência
+  }, [session, dateRange, employeeId]);
 
   const { totalMinutesWorked, dailySummaries } = useMemo(() => {
     if (isLoading || !clockEvents.length) {
       return { totalMinutesWorked: 0, dailySummaries: [] };
     }
 
-    // Ordena o histórico por timestamp em ordem crescente para cálculos de processamento
     const sortedHistory = [...clockEvents].sort((a, b) =>
       parseISO(a.timestamp_solicitado).getTime() - parseISO(b.timestamp_solicitado).getTime()
     );
@@ -113,44 +106,57 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
 
     for (let i = 0; i < sortedHistory.length; i++) {
       const currentEvent = sortedHistory[i];
-      if (currentEvent.tipo_batida === 'entrada') {
-        // Procura pelo próximo evento de 'saída'
-        let nextSaidaIndex = -1;
-        for (let j = i + 1; j < sortedHistory.length; j++) {
-          // Garante que a 'saída' seja no mesmo dia da 'entrada' para cálculo diário
-          const entradaDay = parseISO(currentEvent.timestamp_solicitado).toISOString().split('T')[0];
-          const saidaDay = parseISO(sortedHistory[j].timestamp_solicitado).toISOString().split('T')[0];
+      const dateKey = parseISO(currentEvent.timestamp_solicitado).toISOString().split('T')[0];
 
-          if (sortedHistory[j].tipo_batida === 'saída' && entradaDay === saidaDay) {
-            nextSaidaIndex = j;
+      if (currentEvent.tipo_batida === 'entrada') {
+        let workSegmentStart = parseISO(currentEvent.timestamp_solicitado);
+        let lunchStart: Date | null = null;
+        let lunchEnd: Date | null = null;
+
+        for (let j = i + 1; j < sortedHistory.length; j++) {
+          const nextEvent = sortedHistory[j];
+          const nextEventDateKey = parseISO(nextEvent.timestamp_solicitado).toISOString().split('T')[0];
+
+          // Process events only within the same day
+          if (dateKey !== nextEventDateKey) {
             break;
           }
-        }
 
-        if (nextSaidaIndex !== -1) {
-          const entradaTime = parseISO(currentEvent.timestamp_solicitado);
-          const saidaTime = parseISO(sortedHistory[nextSaidaIndex].timestamp_solicitado);
-
-          const duration = differenceInMinutes(saidaTime, entradaTime);
-          if (duration > 0) {
-            const dateKey = entradaTime.toISOString().split('T')[0]; // YYYY-MM-DD
-            dailyWorkMinutes[dateKey] = (dailyWorkMinutes[dateKey] || 0) + duration;
+          if (nextEvent.tipo_batida === 'saida_almoco' && !lunchStart) {
+            // Calculate work duration before lunch
+            const durationBeforeLunch = differenceInMinutes(parseISO(nextEvent.timestamp_solicitado), workSegmentStart);
+            if (durationBeforeLunch > 0) {
+              dailyWorkMinutes[dateKey] = (dailyWorkMinutes[dateKey] || 0) + durationBeforeLunch;
+            }
+            lunchStart = parseISO(nextEvent.timestamp_solicitado);
+          } else if (nextEvent.tipo_batida === 'volta_almoco' && lunchStart && !lunchEnd) {
+            lunchEnd = parseISO(nextEvent.timestamp_solicitado);
+            workSegmentStart = parseISO(nextEvent.timestamp_solicitado); // New work segment starts after lunch
+          } else if (nextEvent.tipo_batida === 'saída') {
+            // Calculate work duration after lunch (or if no lunch was taken)
+            const durationAfterLunch = differenceInMinutes(parseISO(nextEvent.timestamp_solicitado), workSegmentStart);
+            if (durationAfterLunch > 0) {
+              dailyWorkMinutes[dateKey] = (dailyWorkMinutes[dateKey] || 0) + durationAfterLunch;
+            }
+            i = j; // Move index to the 'saída' event
+            break;
           }
-          i = nextSaidaIndex; // Pula para o evento de 'saída'
+          // If we reach the end of the day without a 'saída', the last segment is considered open.
+          // For simplicity, we only calculate completed segments.
+          if (j === sortedHistory.length - 1) {
+            i = j; // Ensure we don't re-process this 'entrada'
+          }
         }
       }
     }
 
-    // Aplicar a lógica de dedução do almoço
+    // Sum up all daily work minutes for total
     for (const dateKey in dailyWorkMinutes) {
-      if (dailyWorkMinutes[dateKey] >= LUNCH_THRESHOLD_MINUTES) {
-        dailyWorkMinutes[dateKey] = Math.max(0, dailyWorkMinutes[dateKey] - LUNCH_DEDUCTION_MINUTES);
-      }
       totalWorkMinutes += dailyWorkMinutes[dateKey];
     }
 
     const aggregatedDailySummaries: DailySummary[] = Object.keys(dailyWorkMinutes)
-      .sort() // Ordena por data
+      .sort()
       .map(dateKey => ({
         date: dateKey,
         totalMinutes: dailyWorkMinutes[dateKey],

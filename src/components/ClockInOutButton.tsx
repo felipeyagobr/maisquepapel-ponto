@@ -2,24 +2,26 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { LogIn, LogOut, Camera, MapPin, Loader2 } from "lucide-react";
+import { LogIn, LogOut, Camera, MapPin, Loader2, UtensilsCrossed } from "lucide-react"; // Adicionado UtensilsCrossed
 import CurrentDateTime from "./CurrentDateTime";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ClockEvent } from "@/types/clock";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import CameraCapture from "./CameraCapture"; // Importa o novo componente CameraCapture
+import CameraCapture from "./CameraCapture";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
 
 const ClockInOutButton = () => {
   const { session } = useSession();
   const [isClockedIn, setIsClockedIn] = useState<boolean>(false);
+  const [isOnLunch, setIsOnLunch] = useState<boolean>(false); // Novo estado para almoço
   const [lastActionTime, setLastActionTime] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [photoData, setPhotoData] = useState<string | null>(null);
   const [locationData, setLocationData] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [pendingActionType, setPendingActionType] = useState<ClockEvent['tipo_batida'] | null>(null); // Novo estado para a ação pendente
 
   // Busca o status inicial do ponto e a última ação do Supabase
   useEffect(() => {
@@ -41,7 +43,8 @@ const ClockInOutButton = () => {
       }
 
       if (lastPonto) {
-        setIsClockedIn(lastPonto.tipo_batida === 'entrada');
+        setIsClockedIn(lastPonto.tipo_batida === 'entrada' || lastPonto.tipo_batida === 'volta_almoco');
+        setIsOnLunch(lastPonto.tipo_batida === 'saida_almoco');
         setLastActionTime(new Date(lastPonto.timestamp_solicitado).toLocaleTimeString("pt-BR", {
           hour: "2-digit",
           minute: "2-digit",
@@ -49,6 +52,7 @@ const ClockInOutButton = () => {
         }));
       } else {
         setIsClockedIn(false);
+        setIsOnLunch(false);
         setLastActionTime(null);
       }
     };
@@ -87,34 +91,35 @@ const ClockInOutButton = () => {
     });
   };
 
-  const handleClockInOut = async () => {
+  const handleAction = async (actionType: ClockEvent['tipo_batida']) => {
     if (!session?.user?.id) {
       toast.error("Você precisa estar logado para registrar o ponto.");
       return;
     }
 
     setIsProcessing(true);
+    setPendingActionType(actionType);
     const loadingToastId = toast.loading("Registrando ponto...");
 
     try {
-      // 1. Obter Geolocalização
       const location = await getGeolocation();
       if (!location) {
         toast.dismiss(loadingToastId);
         toast.error("Não foi possível obter a localização. Ponto não registrado.");
         setIsProcessing(false);
+        setPendingActionType(null);
         return;
       }
       setLocationData(location);
 
-      // 2. Abrir Câmera para Foto
       setIsCameraOpen(true);
-      toast.dismiss(loadingToastId); // Dispensa o toast de carregamento enquanto a câmera está aberta
+      toast.dismiss(loadingToastId);
     } catch (error: any) {
       console.error("Erro no processo de ponto:", error.message);
       toast.dismiss(loadingToastId);
       toast.error("Erro ao iniciar registro de ponto: " + error.message);
       setIsProcessing(false);
+      setPendingActionType(null);
     }
   };
 
@@ -125,7 +130,7 @@ const ClockInOutButton = () => {
     const processingToastId = toast.loading("Salvando ponto e foto...");
 
     try {
-      if (!session?.user?.id || !locationData || !imageData) { // Use imageData directly
+      if (!session?.user?.id || !locationData || !imageData || !pendingActionType) {
         throw new Error("Dados incompletos para registrar o ponto.");
       }
 
@@ -156,12 +161,12 @@ const ClockInOutButton = () => {
       const now = new Date();
       const newPonto: Omit<ClockEvent, 'id' | 'created_at' | 'displayTime'> = {
         user_id: session.user.id,
-        tipo_batida: isClockedIn ? 'saída' : 'entrada',
+        tipo_batida: pendingActionType,
         timestamp_solicitado: now.toISOString(),
         latitude: locationData.latitude,
         longitude: locationData.longitude,
         foto_url: publicUrlData.publicUrl,
-        status: 'pendente', // Status padrão
+        status: 'pendente',
         timestamp_aprovado: null,
         admin_id: null,
       };
@@ -175,7 +180,18 @@ const ClockInOutButton = () => {
       }
 
       // Atualizar estado local
-      setIsClockedIn(prev => !prev);
+      if (pendingActionType === 'entrada') {
+        setIsClockedIn(true);
+        setIsOnLunch(false);
+      } else if (pendingActionType === 'saída') {
+        setIsClockedIn(false);
+        setIsOnLunch(false);
+      } else if (pendingActionType === 'saida_almoco') {
+        setIsOnLunch(true);
+      } else if (pendingActionType === 'volta_almoco') {
+        setIsOnLunch(false);
+        setIsClockedIn(true); // Volta do almoço significa que ainda está 'dentro'
+      }
       setLastActionTime(now.toLocaleTimeString("pt-BR", {
         hour: "2-digit",
         minute: "2-digit",
@@ -183,8 +199,8 @@ const ClockInOutButton = () => {
       }));
 
       toast.dismiss(processingToastId);
-      toast.success(`Ponto registrado: ${isClockedIn ? 'Saída' : 'Entrada'} às ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`);
-      window.dispatchEvent(new Event('supabaseDataChange')); // Notificar outros componentes
+      toast.success(`Ponto registrado: ${pendingActionType === 'entrada' ? 'Entrada' : pendingActionType === 'saída' ? 'Saída' : pendingActionType === 'saida_almoco' ? 'Saída para Almoço' : 'Volta do Almoço'} às ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`);
+      window.dispatchEvent(new Event('supabaseDataChange'));
     } catch (error: any) {
       console.error("Erro ao registrar ponto:", error.message);
       toast.dismiss(processingToastId);
@@ -193,6 +209,7 @@ const ClockInOutButton = () => {
       setIsProcessing(false);
       setPhotoData(null);
       setLocationData(null);
+      setPendingActionType(null);
     }
   };
 
@@ -200,33 +217,95 @@ const ClockInOutButton = () => {
     setIsCameraOpen(false);
     setPhotoData(null);
     setLocationData(null);
-    setIsProcessing(false); // Redefine o estado de processamento se a câmera for fechada sem captura
+    setIsProcessing(false);
+    setPendingActionType(null);
     toast.info("Captura de foto cancelada.");
   };
+
+  const isDisabled = isProcessing || !session?.user?.id;
 
   return (
     <div className="flex flex-col items-center gap-4">
       <CurrentDateTime />
-      <Button
-        onClick={handleClockInOut}
-        disabled={isProcessing || !session?.user?.id}
-        className={cn(
-          "mt-4 px-8 py-6 text-lg font-semibold rounded-full shadow-lg transition-all duration-300 hover:scale-105",
-          isClockedIn ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700",
-          (isProcessing || !session?.user?.id) && "opacity-60 cursor-not-allowed"
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-sm">
+        {!isClockedIn && !isOnLunch && ( // Estado inicial ou após saída
+          <Button
+            onClick={() => handleAction('entrada')}
+            disabled={isDisabled}
+            className={cn(
+              "px-8 py-6 text-lg font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-105",
+              "bg-green-600 hover:bg-green-700",
+              isDisabled && "opacity-60 cursor-not-allowed"
+            )}
+          >
+            {isProcessing && pendingActionType === 'entrada' ? (
+              <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+            ) : (
+              <LogIn className="mr-2 h-6 w-6" />
+            )}
+            {isProcessing && pendingActionType === 'entrada' ? "Processando..." : "Bater Entrada"}
+          </Button>
         )}
-      >
-        {isProcessing ? (
-          <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-        ) : isClockedIn ? (
-          <LogOut className="mr-2 h-6 w-6" />
-        ) : (
-          <LogIn className="mr-2 h-6 w-6" />
+
+        {isClockedIn && !isOnLunch && ( // Após entrada, antes do almoço
+          <>
+            <Button
+              onClick={() => handleAction('saida_almoco')}
+              disabled={isDisabled}
+              className={cn(
+                "px-8 py-6 text-lg font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-105",
+                "bg-yellow-600 hover:bg-yellow-700 text-white",
+                isDisabled && "opacity-60 cursor-not-allowed"
+              )}
+            >
+              {isProcessing && pendingActionType === 'saida_almoco' ? (
+                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+              ) : (
+                <UtensilsCrossed className="mr-2 h-6 w-6" />
+              )}
+              {isProcessing && pendingActionType === 'saida_almoco' ? "Processando..." : "Sair para Almoço"}
+            </Button>
+            <Button
+              onClick={() => handleAction('saída')}
+              disabled={isDisabled}
+              className={cn(
+                "px-8 py-6 text-lg font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-105",
+                "bg-red-600 hover:bg-red-700",
+                isDisabled && "opacity-60 cursor-not-allowed"
+              )}
+            >
+              {isProcessing && pendingActionType === 'saída' ? (
+                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+              ) : (
+                <LogOut className="mr-2 h-6 w-6" />
+              )}
+              {isProcessing && pendingActionType === 'saída' ? "Processando..." : "Bater Saída"}
+            </Button>
+          </>
         )}
-        {isProcessing ? "Processando..." : (isClockedIn ? "Bater Saída" : "Bater Entrada")}
-      </Button>
+
+        {isOnLunch && ( // Durante o almoço
+          <Button
+            onClick={() => handleAction('volta_almoco')}
+            disabled={isDisabled}
+            className={cn(
+              "col-span-full px-8 py-6 text-lg font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-105",
+              "bg-blue-600 hover:bg-blue-700",
+              isDisabled && "opacity-60 cursor-not-allowed"
+            )}
+          >
+            {isProcessing && pendingActionType === 'volta_almoco' ? (
+              <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+            ) : (
+              <LogIn className="mr-2 h-6 w-6" />
+            )}
+            {isProcessing && pendingActionType === 'volta_almoco' ? "Processando..." : "Voltar do Almoço"}
+          </Button>
+        )}
+      </div>
       <p className="text-sm text-muted-foreground mt-2">
-        {isClockedIn ? "Você está atualmente DENTRO." : "Você está atualmente FORA."}
+        {isClockedIn && !isOnLunch ? "Você está atualmente DENTRO." :
+         isOnLunch ? "Você está em ALMOÇO." : "Você está atualmente FORA."}
       </p>
       {lastActionTime && (
         <p className="text-sm text-muted-foreground">

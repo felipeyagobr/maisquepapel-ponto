@@ -49,12 +49,34 @@ export const createPontoApprovalColumns = ({ onApprove, onReject, employeeNames 
     header: "Tipo",
     cell: ({ row }) => {
       const tipo = row.original.tipo_batida;
+      let badgeClass = "";
+      let badgeText = "";
+
+      switch (tipo) {
+        case 'entrada':
+          badgeClass = "bg-green-500 hover:bg-green-600 text-white";
+          badgeText = "Entrada";
+          break;
+        case 'saída':
+          badgeClass = "bg-red-500 hover:bg-red-600 text-white";
+          badgeText = "Saída";
+          break;
+        case 'saida_almoco':
+          badgeClass = "bg-yellow-500 hover:bg-yellow-600 text-white";
+          badgeText = "Saída Almoço";
+          break;
+        case 'volta_almoco':
+          badgeClass = "bg-blue-500 hover:bg-blue-600 text-white";
+          badgeText = "Volta Almoço";
+          break;
+        default:
+          badgeClass = "bg-gray-500 hover:bg-gray-600 text-white";
+          badgeText = "Desconhecido";
+      }
+
       return (
-        <Badge
-          variant={tipo === 'entrada' ? "default" : "secondary"}
-          className={tipo === 'entrada' ? "bg-green-500 hover:bg-green-600 text-white" : "bg-red-500 hover:bg-red-600 text-white"}
-        >
-          {tipo === 'entrada' ? "Entrada" : "Saída"}
+        <Badge variant="default" className={badgeClass}>
+          {badgeText}
         </Badge>
       );
     },

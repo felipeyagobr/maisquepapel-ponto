@@ -1,7 +1,7 @@
 export interface ClockEvent {
   id: string;
   user_id: string; // Adiciona user_id para Supabase
-  tipo_batida: 'entrada' | 'saída';
+  tipo_batida: 'entrada' | 'saída' | 'saida_almoco' | 'volta_almoco'; // Adicionado tipos de almoço
   timestamp_solicitado: string; // String ISO para o banco de dados
   latitude: number | null;
   longitude: number | null;
