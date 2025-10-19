@@ -12,7 +12,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
-import { EmployeeProfile } from "@/types/employee"; // Import EmployeeProfile
+import { EmployeeProfile } from "@/types/employee";
 
 const ClockHistory = () => {
   const { session, isLoading: sessionLoading } = useSession();
@@ -20,7 +20,6 @@ const ClockHistory = () => {
   const [currentUserProfile, setCurrentUserProfile] = useState<EmployeeProfile | null>(null);
   const [isCurrentUserProfileLoading, setIsCurrentUserProfileLoading] = useState(true);
 
-  // Effect to fetch current user's profile
   useEffect(() => {
     const fetchCurrentUserProfile = async () => {
       if (session?.user) {
@@ -76,10 +75,10 @@ const ClockHistory = () => {
 
   if (isLoading || isCurrentUserProfileLoading) {
     return (
-      <Card className="w-full max-w-md mx-auto">
+      <Card className="w-full shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <History className="h-5 w-5" /> Histórico de Ponto
+          <CardTitle className="text-xl font-semibold flex items-center gap-2 text-primary dark:text-primary-foreground">
+            <History className="h-6 w-6" /> Histórico de Ponto
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-40">
@@ -105,13 +104,13 @@ const ClockHistory = () => {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <History className="h-5 w-5" /> Histórico de Ponto
+    <Card className="w-full shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <CardTitle className="text-xl font-semibold flex items-center gap-2 text-primary dark:text-primary-foreground">
+          <History className="h-6 w-6" /> Histórico de Ponto
         </CardTitle>
-        {history.length > 0 && currentUserProfile?.role === 'admin' && ( // Renderiza o botão apenas para admins
-          <Button variant="ghost" size="sm" onClick={clearHistory} className="text-muted-foreground hover:text-destructive">
+        {history.length > 0 && currentUserProfile?.role === 'admin' && (
+          <Button variant="ghost" size="sm" onClick={clearHistory} className="text-muted-foreground hover:text-destructive transition-colors duration-200">
             <Trash2 className="h-4 w-4 mr-1" /> Limpar
           </Button>
         )}
@@ -122,14 +121,14 @@ const ClockHistory = () => {
             Nenhum registro de ponto ainda.
           </p>
         ) : (
-          <ScrollArea className="h-60 w-full rounded-md border p-4">
+          <ScrollArea className="h-60 w-full rounded-md border p-4 bg-muted/20 dark:bg-muted/10">
             <ul className="space-y-3">
               {history.map((event) => {
                 const badgeProps = getBadgeProps(event.tipo_batida);
                 return (
-                  <li key={event.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm border-b pb-2 last:border-b-0 last:pb-0">
+                  <li key={event.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm border-b border-border/50 pb-2 last:border-b-0 last:pb-0">
                     <div className="flex items-center gap-2 mb-1 sm:mb-0">
-                      <span className="font-medium">
+                      <span className="font-medium text-foreground">
                         {format(parseISO(event.timestamp_solicitado), "dd/MM/yyyy", { locale: ptBR })}
                       </span>
                       <span className="text-muted-foreground">{event.displayTime}</span>
@@ -146,7 +145,7 @@ const ClockHistory = () => {
                           href={`https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-500 hover:text-blue-700"
+                          className="text-blue-500 hover:text-blue-700 transition-colors duration-200"
                           title="Ver Localização"
                         >
                           <MapPin className="h-4 w-4" />
@@ -157,7 +156,7 @@ const ClockHistory = () => {
                           href={event.foto_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-500 hover:text-blue-700"
+                          className="text-blue-500 hover:text-blue-700 transition-colors duration-200"
                           title="Ver Foto"
                         >
                           <Camera className="h-4 w-4" />

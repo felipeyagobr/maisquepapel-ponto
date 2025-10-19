@@ -27,9 +27,11 @@ const CurrentDateTime = () => {
   });
 
   return (
-    <div className="text-center">
-      <p className="text-lg font-medium text-foreground">{formattedDate}</p>
-      <p className="text-4xl font-bold text-primary">{formattedTime}</p>
+    <div className="text-center space-y-2">
+      <p className="text-xl font-medium text-muted-foreground">{formattedDate}</p>
+      <p className="text-5xl font-extrabold text-primary dark:text-primary-foreground animate-pulse-slow">
+        {formattedTime}
+      </p>
     </div>
   );
 };

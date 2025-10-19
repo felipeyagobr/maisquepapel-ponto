@@ -10,7 +10,7 @@ import { ClockEvent } from "@/types/clock";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import CameraCapture from "./CameraCapture";
 import { useSession } from "@/integrations/supabase/auth";
-import { useClockStatus } from "@/hooks/use-clock-status"; // Import the new hook
+import { useClockStatus } from "@/hooks/use-clock-status";
 
 const ClockInOutButton = () => {
   const { session } = useSession();
@@ -21,7 +21,7 @@ const ClockInOutButton = () => {
     hasClockedOutToday,
     lastActionTime,
     isLoadingStatus,
-    handleClockAction: performClockAction, // Renomeado para evitar conflito
+    handleClockAction: performClockAction,
   } = useClockStatus();
 
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -94,13 +94,13 @@ const ClockInOutButton = () => {
   const handlePhotoCapture = async (imageData: string) => {
     setIsCameraOpen(false);
     setPhotoData(imageData);
-    setIsProcessing(true); // Keep processing state true while action is performed
+    setIsProcessing(true);
 
     try {
       if (!pendingActionType || !locationData || !imageData) {
         throw new Error("Dados incompletos para registrar o ponto.");
       }
-      await performClockAction(pendingActionType, imageData, locationData); // Await this
+      await performClockAction(pendingActionType, imageData, locationData);
     } catch (error) {
       // Error handled by useClockStatus hook, just reset local state
     } finally {
@@ -123,7 +123,7 @@ const ClockInOutButton = () => {
   const isDisabled = isProcessing || isLoadingStatus || !session?.user?.id;
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-6 w-full">
       <CurrentDateTime />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-sm">
         {/* Bater Entrada */}
@@ -132,8 +132,8 @@ const ClockInOutButton = () => {
             onClick={() => handleInitiateAction('entrada')}
             disabled={isDisabled}
             className={cn(
-              "px-8 py-6 text-lg font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-105",
-              "bg-green-600 hover:bg-green-700",
+              "px-8 py-6 text-lg font-semibold rounded-xl shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105",
+              "bg-green-600 hover:bg-green-700 text-white",
               isDisabled && "opacity-60 cursor-not-allowed"
             )}
           >
@@ -152,7 +152,7 @@ const ClockInOutButton = () => {
             onClick={() => handleInitiateAction('saida_almoco')}
             disabled={isDisabled}
             className={cn(
-              "px-8 py-6 text-lg font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-105",
+              "px-8 py-6 text-lg font-semibold rounded-xl shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105",
               "bg-yellow-600 hover:bg-yellow-700 text-white",
               isDisabled && "opacity-60 cursor-not-allowed"
             )}
@@ -172,8 +172,8 @@ const ClockInOutButton = () => {
             onClick={() => handleInitiateAction('volta_almoco')}
             disabled={isDisabled}
             className={cn(
-              "col-span-full px-8 py-6 text-lg font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-105",
-              "bg-blue-600 hover:bg-blue-700",
+              "col-span-full px-8 py-6 text-lg font-semibold rounded-xl shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105",
+              "bg-blue-600 hover:bg-blue-700 text-white",
               isDisabled && "opacity-60 cursor-not-allowed"
             )}
           >
@@ -192,8 +192,8 @@ const ClockInOutButton = () => {
             onClick={() => handleInitiateAction('saída')}
             disabled={isDisabled}
             className={cn(
-              "px-8 py-6 text-lg font-semibold rounded-lg shadow-lg transition-all duration-300 hover:scale-105",
-              "bg-red-600 hover:bg-red-700",
+              "px-8 py-6 text-lg font-semibold rounded-xl shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105",
+              "bg-red-600 hover:bg-red-700 text-white",
               isDisabled && "opacity-60 cursor-not-allowed"
             )}
           >

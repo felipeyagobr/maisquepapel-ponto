@@ -33,27 +33,27 @@ const DailyClockSummary = () => {
   const { totalHoursWorked, clockEvents, isLoading } = useClockReport(today);
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Clock className="h-5 w-5" /> Ponto de Hoje
+    <Card className="w-full shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <CardTitle className="text-xl font-semibold flex items-center gap-2 text-primary dark:text-primary-foreground">
+          <Clock className="h-6 w-6" /> Ponto de Hoje
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="mb-4">
-          <p className="text-sm text-muted-foreground">Total de Horas Trabalhadas Hoje:</p>
+        <div className="mb-6 border-b pb-4">
+          <p className="text-sm text-muted-foreground mb-1">Total de Horas Trabalhadas Hoje:</p>
           {isLoading ? (
             <div className="flex items-center justify-center h-8">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : (
-            <p className="text-2xl font-bold text-primary">
+            <p className="text-3xl font-bold text-primary dark:text-primary-foreground">
               {totalHoursWorked}
             </p>
           )}
         </div>
 
-        <h3 className="text-md font-semibold mb-2">Registros do Dia:</h3>
+        <h3 className="text-lg font-semibold mb-3 text-foreground">Registros do Dia:</h3>
         {isLoading ? (
           <div className="flex items-center justify-center h-40">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -63,14 +63,14 @@ const DailyClockSummary = () => {
             Nenhum registro de ponto para hoje.
           </p>
         ) : (
-          <ScrollArea className="h-40 w-full rounded-md border p-4">
+          <ScrollArea className="h-40 w-full rounded-md border p-4 bg-muted/20 dark:bg-muted/10">
             <ul className="space-y-3">
               {clockEvents.map((event) => {
                 const badgeProps = getBadgeProps(event.tipo_batida);
                 return (
-                  <li key={event.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm border-b pb-2 last:border-b-0 last:pb-0">
+                  <li key={event.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm border-b border-border/50 pb-2 last:border-b-0 last:pb-0">
                     <div className="flex items-center gap-2 mb-1 sm:mb-0">
-                      <span className="font-medium">
+                      <span className="font-medium text-foreground">
                         {format(parseISO(event.timestamp_solicitado), "dd/MM/yyyy", { locale: ptBR })}
                       </span>
                       <span className="text-muted-foreground">{event.displayTime}</span>
@@ -87,7 +87,7 @@ const DailyClockSummary = () => {
                           href={`https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-500 hover:text-blue-700"
+                          className="text-blue-500 hover:text-blue-700 transition-colors duration-200"
                           title="Ver Localização"
                         >
                           <MapPin className="h-4 w-4" />
@@ -98,7 +98,7 @@ const DailyClockSummary = () => {
                           href={event.foto_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-500 hover:text-blue-700"
+                          className="text-blue-500 hover:text-blue-700 transition-colors duration-200"
                           title="Ver Foto"
                         >
                           <Camera className="h-4 w-4" />

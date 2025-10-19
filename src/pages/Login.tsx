@@ -8,11 +8,11 @@ import { MadeWithDyad } from '@/components/made-with-dyad';
 
 function Login() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold">Bem-vindo de volta!</CardTitle>
-          <CardDescription>Faça login para acessar sua conta.</CardDescription>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out border-2 border-primary/10 dark:border-primary/20">
+        <CardHeader className="text-center pb-6">
+          <CardTitle className="text-4xl font-extrabold text-primary dark:text-primary-foreground mb-2">Bem-vindo de volta!</CardTitle>
+          <CardDescription className="text-md text-muted-foreground">Faça login para acessar sua conta.</CardDescription>
         </CardHeader>
         <CardContent>
           <Auth
@@ -25,6 +25,16 @@ function Login() {
                   colors: {
                     brand: 'hsl(var(--primary))',
                     brandAccent: 'hsl(var(--primary-foreground))',
+                    defaultButtonBackground: 'hsl(var(--primary))',
+                    defaultButtonBackgroundHover: 'hsl(var(--primary-foreground))',
+                    defaultButtonBorder: 'hsl(var(--primary))',
+                    defaultButtonText: 'hsl(var(--primary-foreground))',
+                    inputBackground: 'hsl(var(--input))',
+                    inputBorder: 'hsl(var(--border))',
+                    inputBorderHover: 'hsl(var(--ring))',
+                    inputBorderFocus: 'hsl(var(--ring))',
+                    inputText: 'hsl(var(--foreground))',
+                    inputLabelText: 'hsl(var(--muted-foreground))',
                   },
                 },
               },
