@@ -4,38 +4,33 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Loader2, MapPin, Camera, UtensilsCrossed } from "lucide-react";
+import { Clock, Loader2, MapPin, Camera } from "lucide-react";
 import { useClockReport } from "@/hooks/use-clock-report";
 import { DateRange } from "react-day-picker";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+const getBadgeProps = (tipo_batida: string) => {
+  switch (tipo_batida) {
+    case 'entrada':
+      return { text: "Entrada", className: "bg-green-500 hover:bg-green-600 text-white" };
+    case 'saída':
+      return { text: "Saída", className: "bg-red-500 hover:bg-red-600 text-white" };
+    case 'saida_almoco':
+      return { text: "Saída Almoço", className: "bg-yellow-500 hover:bg-yellow-600 text-white" };
+    case 'volta_almoco':
+      return { text: "Volta Almoço", className: "bg-blue-500 hover:bg-blue-600 text-white" };
+    default:
+      return { text: "Desconhecido", className: "bg-gray-500 hover:bg-gray-600 text-white" };
+  }
+};
 
 const DailyClockSummary = () => {
   const today: DateRange = {
     from: new Date(),
     to: new Date(),
   };
-  // Agora, useClockReport é a única fonte de verdade para os eventos do dia e o estado de carregamento.
-  const { totalHoursWorked, dailySummaries, clockEvents, isLoading } = useClockReport(today);
-
-  const todaySummary = dailySummaries.find(
-    (summary) => summary.date === format(new Date(), "yyyy-MM-dd")
-  );
-
-  const getBadgeProps = (tipo_batida: string) => {
-    switch (tipo_batida) {
-      case 'entrada':
-        return { text: "Entrada", className: "bg-green-500 hover:bg-green-600 text-white" };
-      case 'saída':
-        return { text: "Saída", className: "bg-red-500 hover:bg-red-600 text-white" };
-      case 'saida_almoco':
-        return { text: "Saída Almoço", className: "bg-yellow-500 hover:bg-yellow-600 text-white" };
-      case 'volta_almoco':
-        return { text: "Volta Almoço", className: "bg-blue-500 hover:bg-blue-600 text-white" };
-      default:
-        return { text: "Desconhecido", className: "bg-gray-500 hover:bg-gray-600 text-white" };
-    }
-  };
+  const { totalHoursWorked, clockEvents, isLoading } = useClockReport(today);
 
   return (
     <Card className="w-full max-w-md mx-auto">
