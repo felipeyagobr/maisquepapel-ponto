@@ -12,26 +12,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-// This type is used to define the shape of our data.
-// You can use a Zod schema here if you want.
-export type Employee = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: "active" | "inactive";
-};
+import { EmployeeProfile } from "@/types/employee"; // Import the new EmployeeProfile type
 
 interface ColumnsProps {
-  onEdit: (employee: Employee) => void;
+  onEdit: (employee: EmployeeProfile) => void;
   onDelete: (id: string) => void;
 }
 
-export const createColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Employee>[] => [
+export const createColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<EmployeeProfile>[] => [
   {
-    accessorKey: "name",
+    accessorKey: "name", // This will be a virtual column for display
     header: "Nome",
+    cell: ({ row }) => {
+      const employee = row.original;
+      return `${employee.first_name || ''} ${employee.last_name || ''}`.trim();
+    },
   },
   {
     accessorKey: "email",
@@ -40,17 +35,13 @@ export const createColumns = ({ onEdit, onDelete }: ColumnsProps): ColumnDef<Emp
   {
     accessorKey: "role",
     header: "Cargo",
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status");
+      const role = row.getValue("role");
       return (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          status === "active" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+          role === "admin" ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
         }`}>
-          {status === "active" ? "Ativo" : "Inativo"}
+          {role === "admin" ? "Administrador" : "Funcionário"}
         </span>
       );
     },

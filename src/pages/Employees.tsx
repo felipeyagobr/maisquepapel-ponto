@@ -3,64 +3,127 @@
 import { useEffect, useState, useMemo } from "react";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Loader2 } from "lucide-react";
 import { DataTable } from "@/components/data-table/DataTable";
-import { createColumns, Employee } from "./employees/columns"; // Import createColumns
+import { createColumns } from "./employees/columns";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import EmployeeForm from "@/components/EmployeeForm";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { EmployeeProfile } from "@/types/employee";
+import { useSession } from "@/integrations/supabase/auth"; // Import useSession
+import { useNavigate } from "react-router-dom";
 
 const Employees = () => {
-  const [employees, setEmployees] = useState<Employee[]>(() => {
-    if (typeof window !== 'undefined') {
-      const storedEmployees = localStorage.getItem("employees");
-      return storedEmployees ? JSON.parse(storedEmployees) : [];
-    }
-    return [];
-  });
+  const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<Employee | undefined>(undefined);
+  const [editingEmployee, setEditingEmployee] = useState<EmployeeProfile | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
+  const { session, isLoading: sessionLoading } = useSession(); // Get session and loading state
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    localStorage.setItem("employees", JSON.stringify(employees));
-  }, [employees]);
+  const fetchEmployees = async () => {
+    setIsLoading(true);
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name, role, avatar_url, updated_at');
 
-  const handleAddOrUpdateEmployee = (employeeData: Omit<Employee, 'id'>) => {
-    if (editingEmployee) {
-      // Update existing employee
-      setEmployees((prevEmployees) =>
-        prevEmployees.map((emp) =>
-          emp.id === editingEmployee.id ? { ...emp, ...employeeData } : emp
-        )
-      );
-      toast.success("Funcionário atualizado com sucesso!");
-    } else {
-      // Add new employee
-      const newEmployee: Employee = {
-        id: Date.now().toString(), // Simple unique ID
-        ...employeeData,
-      };
-      setEmployees((prevEmployees) => [...prevEmployees, newEmployee]);
-      toast.success("Funcionário adicionado com sucesso!");
+    if (profilesError) {
+      toast.error("Erro ao carregar perfis: " + profilesError.message);
+      setIsLoading(false);
+      return;
     }
-    setEditingEmployee(undefined); // Clear editing state
+
+    // Fetch user emails from auth.users table
+    const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
+
+    if (usersError) {
+      toast.error("Erro ao carregar usuários de autenticação: " + usersError.message);
+      setIsLoading(false);
+      return;
+    }
+
+    const usersMap = new Map(users.users.map(user => [user.id, user.email]));
+
+    const combinedEmployees: EmployeeProfile[] = profiles.map(profile => ({
+      ...profile,
+      email: usersMap.get(profile.id) || 'N/A', // Get email from auth.users
+    }));
+
+    setEmployees(combinedEmployees);
+    setIsLoading(false);
   };
 
-  const handleEditClick = (employee: Employee) => {
+  useEffect(() => {
+    if (!sessionLoading) {
+      // Check if user is admin
+      const userRole = employees.find(emp => emp.id === session?.user?.id)?.role;
+      if (!session || userRole !== 'admin') {
+        toast.error("Acesso negado. Apenas administradores podem gerenciar funcionários.");
+        navigate('/'); // Redirect non-admins to home
+        return;
+      }
+      fetchEmployees();
+    }
+  }, [session, sessionLoading, navigate]); // Depend on session and sessionLoading
+
+  const handleSaveSuccess = () => {
+    fetchEmployees(); // Re-fetch employees after save/invite
+    setIsFormOpen(false);
+    setEditingEmployee(undefined);
+  };
+
+  const handleEditClick = (employee: EmployeeProfile) => {
     setEditingEmployee(employee);
     setIsFormOpen(true);
   };
 
-  const handleDeleteEmployee = (id: string) => {
-    setEmployees((prevEmployees) => prevEmployees.filter((emp) => emp.id !== id));
-    toast.success("Funcionário excluído com sucesso!");
+  const handleDeleteEmployee = async (id: string) => {
+    // First, delete the user from Supabase Auth
+    const { error: authError } = await supabase.auth.admin.deleteUser(id);
+
+    if (authError) {
+      toast.error("Erro ao excluir usuário: " + authError.message);
+    } else {
+      // The RLS policy on profiles table (ON DELETE CASCADE) should handle profile deletion
+      toast.success("Funcionário excluído com sucesso!");
+      fetchEmployees(); // Re-fetch employees
+    }
   };
 
-  // Memoize columns to prevent unnecessary re-renders
   const columns = useMemo(() => createColumns({
     onEdit: handleEditClick,
     onDelete: handleDeleteEmployee,
-  }), [employees]); // Recreate columns if employees change (to update actions)
+  }), [employees]);
+
+  if (sessionLoading || isLoading) {
+    return (
+      <Layout>
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  // Check if the current user is an admin before rendering content
+  const currentUserProfile = employees.find(emp => emp.id === session?.user?.id);
+  if (!currentUserProfile || currentUserProfile.role !== 'admin') {
+    return (
+      <Layout>
+        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm p-8">
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h3 className="text-2xl font-bold tracking-tight">
+              Acesso Restrito
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Você não tem permissão para acessar esta página.
+            </p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -79,7 +142,7 @@ const Employees = () => {
             </Button>
           </DialogTrigger>
           <EmployeeForm
-            onSave={handleAddOrUpdateEmployee}
+            onSaveSuccess={handleSaveSuccess}
             onClose={() => setIsFormOpen(false)}
             initialData={editingEmployee}
           />
