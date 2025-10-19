@@ -25,6 +25,9 @@ const Employees = () => {
   const { session, isLoading: sessionLoading } = useSession();
   const navigate = useNavigate();
 
+  // URL da Edge Function (substitua 'dpmlhdbqzejijhnabges' pelo seu Project ID do Supabase)
+  const MANAGE_USERS_EDGE_FUNCTION_URL = `https://dpmlhdbqzejijhnabges.supabase.co/functions/v1/manage-users`;
+
   // Effect to fetch current user's profile
   useEffect(() => {
     const fetchCurrentUserProfile = async () => {
@@ -54,33 +57,33 @@ const Employees = () => {
 
   const fetchEmployees = async () => {
     setIsLoadingEmployees(true);
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('id, first_name, last_name, role, avatar_url, updated_at');
-
-    if (profilesError) {
-      toast.error("Erro ao carregar perfis: " + profilesError.message);
+    if (!session?.access_token) {
+      toast.error("Sessão não encontrada. Por favor, faça login novamente.");
       setIsLoadingEmployees(false);
       return;
     }
 
-    const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
+    try {
+      const response = await fetch(MANAGE_USERS_EDGE_FUNCTION_URL, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (usersError) {
-      toast.error("Erro ao carregar usuários de autenticação: " + usersError.message);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao carregar funcionários.');
+      }
+
+      const data: EmployeeProfile[] = await response.json();
+      setEmployees(data);
+    } catch (error: any) {
+      toast.error("Erro ao carregar funcionários: " + error.message);
+    } finally {
       setIsLoadingEmployees(false);
-      return;
     }
-
-    const usersMap = new Map(users.users.map(user => [user.id, user.email]));
-
-    const combinedEmployees: EmployeeProfile[] = profiles.map(profile => ({
-      ...profile,
-      email: usersMap.get(profile.id) || 'N/A',
-    }));
-
-    setEmployees(combinedEmployees);
-    setIsLoadingEmployees(false);
   };
 
   // Effect to fetch all employees if current user is admin
@@ -93,7 +96,7 @@ const Employees = () => {
         navigate('/');
       }
     }
-  }, [isCurrentUserProfileLoading, currentUserProfile, navigate]);
+  }, [isCurrentUserProfileLoading, currentUserProfile, navigate, session?.access_token]); // Added session.access_token to dependencies
 
   const handleSaveSuccess = () => {
     fetchEmployees();
@@ -107,20 +110,37 @@ const Employees = () => {
   };
 
   const handleDeleteEmployee = async (id: string) => {
-    const { error: authError } = await supabase.auth.admin.deleteUser(id);
+    if (!session?.access_token) {
+      toast.error("Sessão não encontrada. Por favor, faça login novamente.");
+      return;
+    }
 
-    if (authError) {
-      toast.error("Erro ao excluir usuário: " + authError.message);
-    } else {
+    try {
+      const response = await fetch(MANAGE_USERS_EDGE_FUNCTION_URL, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: id }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao excluir funcionário.');
+      }
+
       toast.success("Funcionário excluído com sucesso!");
       fetchEmployees();
+    } catch (error: any) {
+      toast.error("Erro ao excluir funcionário: " + error.message);
     }
   };
 
   const columns = useMemo(() => createColumns({
     onEdit: handleEditClick,
     onDelete: handleDeleteEmployee,
-  }), [employees]);
+  }), [employees, session?.access_token]); // Added session.access_token to dependencies
 
   if (sessionLoading || isCurrentUserProfileLoading || isLoadingEmployees) {
     return (
