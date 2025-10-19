@@ -30,7 +30,7 @@ import {
 import { EmployeeProfile, EmployeeFormValues as FormValues } from "@/types/employee";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useSession } from "@/integrations/supabase/auth"; // Import useSession
+import { useSession } from "@/integrations/supabase/auth";
 
 const employeeFormSchema = z.object({
   name: z.string().min(2, {
@@ -45,13 +45,13 @@ const employeeFormSchema = z.object({
 });
 
 interface EmployeeFormProps {
-  onSaveSuccess: () => void; // Callback para quando a operação for bem-sucedida
+  onSaveSuccess: () => void;
   onClose: () => void;
-  initialData?: EmployeeProfile; // Para edição
+  initialData?: EmployeeProfile;
 }
 
 const EmployeeForm = ({ onSaveSuccess, onClose, initialData }: EmployeeFormProps) => {
-  const { session } = useSession(); // Get session from context
+  const { session } = useSession();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(employeeFormSchema),
@@ -62,7 +62,7 @@ const EmployeeForm = ({ onSaveSuccess, onClose, initialData }: EmployeeFormProps
     } : {
       name: "",
       email: "",
-      role: "employee", // Default role for new employees
+      role: "employee",
     },
   });
 
@@ -75,11 +75,9 @@ const EmployeeForm = ({ onSaveSuccess, onClose, initialData }: EmployeeFormProps
       return;
     }
 
-    // URL da Edge Function (substitua 'dpmlhdbqzejijhnabges' pelo seu Project ID do Supabase)
     const MANAGE_USERS_EDGE_FUNCTION_URL = `https://dpmlhdbqzejijhnabges.supabase.co/functions/v1/manage-users`;
 
     if (initialData) {
-      // Update existing employee profile
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -98,7 +96,6 @@ const EmployeeForm = ({ onSaveSuccess, onClose, initialData }: EmployeeFormProps
         onClose();
       }
     } else {
-      // Invite new user via Edge Function
       try {
         const response = await fetch(MANAGE_USERS_EDGE_FUNCTION_URL, {
           method: 'POST',
@@ -136,60 +133,13 @@ const EmployeeForm = ({ onSaveSuccess, onClose, initialData }: EmployeeFormProps
           {initialData ? "Faça alterações nos detalhes do funcionário aqui." : "Preencha os detalhes para convidar um novo funcionário."}
         </DialogDescription>
       </DialogHeader>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nome Completo</FormLabel>
-                <FormControl>
-                  <Input placeholder="Nome completo do funcionário" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input placeholder="email@empresa.com" {...field} disabled={!!initialData} /> {/* Email is not editable for existing users */}
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="role"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cargo</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um cargo" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="employee">Funcionário</SelectItem>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <DialogFooter>
-            <Button type="submit">{initialData ? "Salvar Alterações" : "Convidar Funcionário"}</Button>
-          </DialogFooter>
-        </form>
-      </Form>
+      {/* Conteúdo simplificado para depuração */}
+      <div className="p-4 text-center text-lg font-semibold">
+        Formulário de Funcionário (Teste)
+      </div>
+      <DialogFooter>
+        <Button type="button" onClick={onClose}>Fechar</Button>
+      </DialogFooter>
     </DialogContent>
   );
 };
