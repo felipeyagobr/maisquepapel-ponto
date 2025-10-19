@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react"; // Adicionado useCallback
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { DateRange } from "react-day-picker";
 import { isWithinInterval, parseISO, differenceInMinutes, startOfDay, endOfDay } from "date-fns";
 import { ClockEvent } from "@/types/clock";
@@ -36,24 +36,14 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchClockEvents = useCallback(async () => {
-    if (sessionLoading) {
-      // Se a sessão ainda está carregando, apenas retornamos.
-      // O estado inicial de isLoading (definido por useState(true)) já cobre isso.
-      return;
-    }
-
     const targetUserId = employeeId || session?.user?.id;
 
     if (!targetUserId && !isAdminViewingAll) {
-      // Se não há um ID de usuário alvo e não é um admin visualizando todos,
-      // não há nada para buscar. Definimos eventos como vazio e loading como false.
       setClockEvents([]);
-      setIsLoading(false);
+      setIsLoading(false); // Garante que o loading é false se não há nada para buscar
       return;
     }
 
-    // Se chegamos aqui, significa que temos um targetUserId ou isAdminViewingAll é true,
-    // então estamos prestes a buscar dados. Definimos loading como true.
     setIsLoading(true); 
     try {
       let query = supabase
@@ -84,7 +74,6 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
       let enrichedEvents = data;
       let employeeNamesMap = new Map<string, string>();
 
-      // Se for um admin visualizando todos os funcionários, busca os nomes
       if (isAdminViewingAll && data.length > 0) {
         const uniqueUserIds = Array.from(new Set(data.map(event => event.user_id)));
         const { data: profilesData, error: profilesError } = await supabase
@@ -94,7 +83,6 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
 
         if (profilesError) {
             console.error("Erro ao buscar perfis para o relatório de ponto:", profilesError.message);
-            // Continua sem os nomes se houver um erro
         } else {
             profilesData.forEach(profile => {
                 employeeNamesMap.set(profile.id, `${profile.first_name || ''} ${profile.last_name || ''}`.trim());
@@ -119,15 +107,22 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
     } finally {
       setIsLoading(false);
     }
-  }, [session, dateRange, employeeId, sessionLoading, isAdminViewingAll]);
+  }, [session, dateRange, employeeId, isAdminViewingAll]); // Removido sessionLoading daqui, pois o useEffect já o monitora
 
   useEffect(() => {
-    if (!sessionLoading) {
+    // Só busca dados se a sessão não estiver carregando E (o usuário estiver logado OU for um admin visualizando todos).
+    if (!sessionLoading && (session?.user?.id || isAdminViewingAll)) {
       fetchClockEvents();
+    } else if (!sessionLoading && !session?.user?.id && !isAdminViewingAll) {
+      // Se a sessão carregou, mas não há usuário logado e não é um admin visualizando todos,
+      // então não há dados para buscar, e o estado de carregamento deve ser false.
+      setClockEvents([]);
+      setIsLoading(false);
     }
+
     window.addEventListener('supabaseDataChange', fetchClockEvents);
     return () => window.removeEventListener('supabaseDataChange', fetchClockEvents);
-  }, [sessionLoading, fetchClockEvents]); // Simplified dependencies for useEffect, as fetchClockEvents is useCallback'd
+  }, [session, sessionLoading, employeeId, isAdminViewingAll, fetchClockEvents]); // Adicionado session, employeeId, isAdminViewingAll
 
   const { totalMinutesWorked, dailySummaries } = useMemo(() => {
     if (isLoading || !clockEvents.length) {
@@ -198,7 +193,7 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
       totalMinutesWorked: totalWorkMinutes,
       dailySummaries: aggregatedDailySummaries,
     };
-  }, [clockEvents, dateRange, isLoading]); // Adicionado isLoading como dependência para re-calcular se o estado de carregamento mudar
+  }, [clockEvents, dateRange, isLoading]);
 
   const totalHoursWorked = formatMinutesToHours(totalMinutesWorked);
 
