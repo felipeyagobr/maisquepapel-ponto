@@ -185,7 +185,19 @@ const Reports = () => {
           )}
         </div>
 
-        {selectedEmployeeDetails && (
+        {isViewingAllEmployees ? (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" /> Relatório Consolidado
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-lg font-bold">Todos os Funcionários</p>
+              <p className="text-sm text-muted-foreground">Visualizando dados de ponto consolidados para toda a equipe.</p>
+            </CardContent>
+          </Card>
+        ) : selectedEmployeeDetails && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
