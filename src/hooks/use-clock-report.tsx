@@ -15,12 +15,12 @@ interface DailySummary {
 }
 
 interface ClockReport {
-  clockEvents: ClockEvent[]; // Adiciona os eventos brutos para uso em outros componentes
+  clockEvents: ClockEvent[];
   totalMinutesWorked: number;
   totalHoursWorked: string;
   dailySummaries: DailySummary[];
   isLoading: boolean;
-  fetchClockEvents: () => void; // Adiciona função para refetch manual
+  fetchClockEvents: () => void;
 }
 
 const formatMinutesToHours = (totalMinutes: number): string => {
@@ -31,20 +31,28 @@ const formatMinutesToHours = (totalMinutes: number): string => {
 };
 
 export function useClockReport(dateRange: DateRange | undefined, employeeId?: string): ClockReport {
-  const { session } = useSession();
+  const { session, isLoading: sessionLoading } = useSession(); // Obter o estado de carregamento da sessão
   const [clockEvents, setClockEvents] = useState<ClockEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Estado de carregamento para os eventos de ponto
 
   const fetchClockEvents = async () => {
-    const targetUserId = employeeId || session?.user?.id;
-
-    if (!targetUserId) {
-      setClockEvents([]);
-      setIsLoading(false);
+    // Se a sessão ainda estiver carregando, mantenha o estado de carregamento e retorne.
+    if (sessionLoading) {
+      setIsLoading(true);
       return;
     }
 
-    setIsLoading(true);
+    const targetUserId = employeeId || session?.user?.id;
+
+    // Se não houver um ID de usuário alvo (nem employeeId nem session.user.id),
+    // significa que não há dados para buscar.
+    if (!targetUserId) {
+      setClockEvents([]);
+      setIsLoading(false); // Pare de carregar e mostre que não há dados
+      return;
+    }
+
+    setIsLoading(true); // Inicia o carregamento dos eventos de ponto
     try {
       let query = supabase
         .from('pontos')
@@ -82,17 +90,21 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
       toast.error("Erro ao carregar histórico de ponto: " + error.message);
       setClockEvents([]);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Finaliza o carregamento, independentemente do resultado
     }
   };
 
   useEffect(() => {
-    fetchClockEvents();
+    // Só executa a busca de eventos de ponto se o carregamento da sessão estiver completo
+    if (!sessionLoading) {
+      fetchClockEvents();
+    }
     window.addEventListener('supabaseDataChange', fetchClockEvents);
     return () => window.removeEventListener('supabaseDataChange', fetchClockEvents);
-  }, [session, dateRange, employeeId]);
+  }, [session, dateRange, employeeId, sessionLoading]); // Adicionar sessionLoading às dependências
 
   const { totalMinutesWorked, dailySummaries } = useMemo(() => {
+    // Se ainda estiver carregando ou não houver eventos, retorne valores padrão
     if (isLoading || !clockEvents.length) {
       return { totalMinutesWorked: 0, dailySummaries: [] };
     }
@@ -167,7 +179,7 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
       totalMinutesWorked: totalWorkMinutes,
       dailySummaries: aggregatedDailySummaries,
     };
-  }, [clockEvents, dateRange, isLoading]);
+  }, [clockEvents, dateRange]); // Removido 'isLoading' das dependências para evitar loop
 
   const totalHoursWorked = formatMinutesToHours(totalMinutesWorked);
 
