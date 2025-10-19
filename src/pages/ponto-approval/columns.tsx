@@ -19,16 +19,16 @@ import { ClockEvent } from "@/types/clock";
 interface PontoApprovalColumnsProps {
   onApprove: (pontoId: string) => void;
   onReject: (pontoId: string) => void;
+  employeeNames: Map<string, string>; // Adiciona o mapa de nomes de funcionários
 }
 
-export const createPontoApprovalColumns = ({ onApprove, onReject }: PontoApprovalColumnsProps): ColumnDef<ClockEvent>[] => [
+export const createPontoApprovalColumns = ({ onApprove, onReject, employeeNames }: PontoApprovalColumnsProps): ColumnDef<ClockEvent>[] => [
   {
     accessorKey: "user_id",
     header: "Funcionário",
     cell: ({ row }) => {
-      // TODO: Fetch employee name based on user_id
-      // For now, display a placeholder or user ID
-      return <span className="text-muted-foreground">{row.original.user_id.substring(0, 8)}...</span>;
+      const employeeName = employeeNames.get(row.original.user_id);
+      return employeeName || row.original.user_id.substring(0, 8) + '...'; // Fallback para ID truncado se o nome não for encontrado
     },
   },
   {
