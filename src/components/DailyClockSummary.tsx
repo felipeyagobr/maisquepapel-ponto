@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, Loader2, MapPin, Camera } from "lucide-react";
 import { useClockReport } from "@/hooks/use-clock-report";
 import { DateRange } from "react-day-picker";
-import { format, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns"; // Adicionado parseISO
 import { ptBR } from "date-fns/locale";
 import { ClockEvent } from "@/types/clock";
 import { useSession } from "@/integrations/supabase/auth";
@@ -48,11 +48,8 @@ const DailyClockSummary = () => {
 
       const formattedEvents: ClockEvent[] = data.map(event => ({
         ...event,
-        displayTime: new Date(event.timestamp_solicitado).toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
+        // Usar parseISO e format para consistência com date-fns
+        displayTime: format(parseISO(event.timestamp_solicitado), "HH:mm:ss", { locale: ptBR }),
       }));
       setCurrentDayEvents(formattedEvents);
     } catch (error: any) {
