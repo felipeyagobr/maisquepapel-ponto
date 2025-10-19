@@ -42,7 +42,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
           .from('profiles')
           .select('id, first_name, last_name, role, avatar_url, updated_at')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle(); // Changed from .single() to .maybeSingle()
 
         if (error) {
           toast.error("Erro ao carregar perfil do usuário: " + error.message);
@@ -50,6 +50,9 @@ const Sidebar = ({ onClose }: SidebarProps) => {
         } else if (data) {
           // Combine with email from session
           setUserProfile({ ...data, email: session.user.email || 'N/A' });
+        } else {
+          // No profile found, set to null
+          setUserProfile(null);
         }
       }
       setIsProfileLoading(false);
