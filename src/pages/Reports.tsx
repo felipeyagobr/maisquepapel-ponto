@@ -6,10 +6,10 @@ import { DateRangePicker } from "@/components/DateRangePicker";
 import { DateRange } from "react-day-picker";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useClockReport } from "@/hooks/use-clock-report";
-import { Loader2, Clock, History, MapPin, Camera, Users } from "lucide-react";
+import { Loader2, Clock, History, MapPin, Camera, Users, User } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/integrations/supabase/auth";
 import { EmployeeProfile } from "@/types/employee";
 import { toast } from "sonner";
+import DailyHoursChart from "@/components/DailyHoursChart"; // Import the new chart component
 
 const Reports = () => {
   const { session, isLoading: sessionLoading } = useSession();
@@ -30,6 +31,7 @@ const Reports = () => {
   const [isCurrentUserProfileLoading, setIsCurrentUserProfileLoading] = useState(true);
   const [allEmployees, setAllEmployees] = useState<EmployeeProfile[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | undefined>(undefined);
+  const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<EmployeeProfile | null>(null); // New state for selected employee details
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const { totalHoursWorked, dailySummaries, clockEvents, isLoading } = useClockReport(dateRange, selectedEmployeeId);
@@ -89,6 +91,7 @@ const Reports = () => {
           // Set initial selected employee to the first one or current user if admin
           if (!selectedEmployeeId && data.length > 0) {
             setSelectedEmployeeId(data[0].id);
+            setSelectedEmployeeDetails(data[0]);
           }
         } catch (error: any) {
           toast.error("Erro ao carregar lista de funcionários: " + error.message);
@@ -100,6 +103,26 @@ const Reports = () => {
       fetchAllEmployees();
     }
   }, [isCurrentUserProfileLoading, currentUserProfile, session?.access_token, selectedEmployeeId]);
+
+  // Effect to update selectedEmployeeDetails when selectedEmployeeId changes
+  useEffect(() => {
+    if (selectedEmployeeId) {
+      const employee = allEmployees.find(emp => emp.id === selectedEmployeeId);
+      if (employee) {
+        setSelectedEmployeeDetails(employee);
+      } else if (currentUserProfile && currentUserProfile.id === selectedEmployeeId) {
+        setSelectedEmployeeDetails(currentUserProfile);
+      } else {
+        setSelectedEmployeeDetails(null);
+      }
+    } else if (currentUserProfile?.role === 'admin' && allEmployees.length > 0) {
+      // If "Todos os Funcionários" is selected, or no specific employee, clear details
+      setSelectedEmployeeDetails(null);
+    } else if (currentUserProfile?.role === 'employee') {
+      setSelectedEmployeeDetails(currentUserProfile);
+    }
+  }, [selectedEmployeeId, allEmployees, currentUserProfile]);
+
 
   if (sessionLoading || isCurrentUserProfileLoading) {
     return (
@@ -122,7 +145,7 @@ const Reports = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
               <Select
                 onValueChange={(value) => setSelectedEmployeeId(value === "all" ? undefined : value)}
-                value={selectedEmployeeId || (currentUserProfile?.role === 'admin' ? "all" : currentUserProfile?.id)}
+                value={selectedEmployeeId || (currentUserProfile?.role === 'admin' && !selectedEmployeeId ? "all" : currentUserProfile?.id)}
               >
                 <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Selecionar Funcionário" />
@@ -142,6 +165,23 @@ const Reports = () => {
             </div>
           )}
         </div>
+
+        {selectedEmployeeDetails && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" /> Detalhes do Funcionário
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-lg font-bold">{selectedEmployeeDetails.first_name} {selectedEmployeeDetails.last_name}</p>
+              <p className="text-sm text-muted-foreground">{selectedEmployeeDetails.email}</p>
+              <Badge className="mt-2 capitalize">
+                {selectedEmployeeDetails.role === 'admin' ? 'Administrador' : 'Funcionário'}
+              </Badge>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card>
@@ -168,6 +208,9 @@ const Reports = () => {
           </Card>
           {/* Add more summary cards here if needed */}
         </div>
+
+        {/* Daily Hours Chart */}
+        <DailyHoursChart dailySummaries={dailySummaries} />
 
         <Card className="flex-1">
           <CardHeader>
