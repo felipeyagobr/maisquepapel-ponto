@@ -57,7 +57,7 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
       let query = supabase
         .from('pontos')
         .select('*')
-        .order('timestamp_solicitado', { ascending: false });
+        .order('timestamp_solicitado', { ascending: true }); // Alterado para ordem crescente
 
       // Aplica o filtro de user_id apenas se um funcionário específico for selecionado
       if (targetUserId) {
@@ -133,6 +133,7 @@ export function useClockReport(dateRange: DateRange | undefined, employeeId?: st
       return { totalMinutesWorked: 0, dailySummaries: [] };
     }
 
+    // A ordenação já é feita na busca do Supabase, então esta linha pode ser removida ou mantida para redundância
     const sortedHistory = [...clockEvents].sort((a, b) =>
       parseISO(a.timestamp_solicitado).getTime() - parseISO(b.timestamp_solicitado).getTime()
     );
